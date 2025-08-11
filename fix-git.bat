@@ -26,7 +26,7 @@ git status
 
 echo.
 echo Creating commit with changes...
-git commit -m "Fix component structure and add Google Sheets sync"
+git commit -m "Add Google Sheets integration and fix sync functionality"
 
 echo.
 echo Pushing to GitHub...

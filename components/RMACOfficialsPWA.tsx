@@ -1136,33 +1136,70 @@ const RMACOfficialsPWA: React.FC = () => {
   // Game start screen
   if (!currentGame) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white">
-        <h1 className="text-4xl font-extrabold mb-4">RMAC Officials App</h1>
-        <p className="text-lg mb-8 text-center max-w-md">
-          Streamline your officiating experience. Record penalties, track game events, and sync with Google Sheets.
-        </p>
-        
-        <div className="grid grid-cols-2 gap-4 w-full max-w-md">
-          <button
-            onClick={() => startNewGame('Home Team', 'Away Team')}
-            className="p-4 bg-green-600 hover:bg-green-700 rounded-lg font-bold transition-all flex items-center justify-center gap-2"
-          >
-            <Check className="w-5 h-5" />
-            Start New Game
-          </button>
+      <div className="min-h-screen bg-gray-900 text-white p-4">
+        <div className="max-w-md mx-auto">
+          <h1 className="text-3xl font-bold text-center mb-8">RMAC Officials Assistant</h1>
           
-          <button
-            onClick={() => setShowCrewManagement(true)}
-            className="p-4 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold transition-all flex items-center justify-center gap-2"
-          >
-            <Users className="w-5 h-5" />
-            Manage Crew
-          </button>
-        </div>
-        
-        <div className="mt-8 text-center text-gray-400 text-sm">
-          <p>Version 1.0.0</p>
-          <p>© 2025 RMAC Officials. All rights reserved.</p>
+          <div className="bg-gray-800 p-6 rounded-lg mb-4">
+            <h2 className="text-xl font-bold mb-4">Start New Game</h2>
+            <div className="space-y-4">
+              <select 
+                id="homeTeam"
+                className="w-full p-3 bg-gray-700 rounded text-white"
+                defaultValue=""
+              >
+                <option value="">Select Home Team</option>
+                {rmacTeams.map(team => (
+                  <option key={team} value={team}>{team}</option>
+                ))}
+              </select>
+              
+              <select 
+                id="awayTeam"
+                className="w-full p-3 bg-gray-700 rounded text-white"
+                defaultValue=""
+              >
+                <option value="">Select Away Team</option>
+                {rmacTeams.map(team => (
+                  <option key={team} value={team}>{team}</option>
+                ))}
+              </select>
+              
+              <button
+                onClick={() => {
+                  const homeSelect = document.getElementById('homeTeam') as HTMLSelectElement;
+                  const awaySelect = document.getElementById('awayTeam') as HTMLSelectElement;
+                  
+                  if (homeSelect && awaySelect) {
+                    const home = homeSelect.value;
+                    const away = awaySelect.value;
+                    
+                    if (home && away && home !== away) {
+                      startNewGame(home, away);
+                    } else {
+                      alert('Please select different home and away teams');
+                    }
+                  }
+                }}
+                className="w-full p-3 bg-green-600 hover:bg-green-700 rounded font-bold transition-colors"
+              >
+                Start Game
+              </button>
+            </div>
+          </div>
+
+          {savedGames.length > 0 && (
+            <div className="bg-gray-800 p-4 rounded-lg">
+              <h3 className="font-bold mb-2">Saved Games ({savedGames.length})</h3>
+              <button
+                onClick={syncToCloud}
+                className="w-full p-2 bg-blue-600 rounded mb-2 flex items-center justify-center gap-2 transition-colors hover:bg-blue-700"
+              >
+                <Upload className="w-4 h-4" />
+                Sync to Cloud
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1172,245 +1209,238 @@ const RMACOfficialsPWA: React.FC = () => {
   return (
     <TeamColorProvider homeTeam={currentGame.homeTeam} awayTeam={currentGame.awayTeam}>
       <div className="min-h-screen bg-gray-900 text-white pb-20">
-        {/* Header */}
-        <div className="bg-gray-800 p-4 flex items-center justify-between border-b border-gray-700">
-          <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-bold">
-              {currentGame.homeTeam} vs {currentGame.awayTeam}
-            </h2>
-            <span className="text-sm text-gray-400">
-              {new Date(currentGame.date).toLocaleString()}
-            </span>
+        {showNumberPad && <NumberPad />}
+        {showAnalytics && <AnalyticsDashboard />}
+        {showFieldView && <FieldView />}
+        {showEnforcementCalc && <EnforcementCalculator />}
+        {showCrewNotes && <CrewNotesPanel />}
+        
+        {/* Enhanced Header with Team Colors */}
+        <GameHeader 
+          game={currentGame} 
+          isOnline={isOnline} 
+          onSave={saveGameOffline} 
+        />
+
+        {/* Undo notification */}
+        {lastDeletedPenalty && (
+          <div className="bg-gradient-to-r from-yellow-600 to-orange-600 p-3 flex justify-between items-center shadow-lg">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              <span className="font-semibold">Penalty deleted</span>
+            </div>
+            <button
+              onClick={undoDelete}
+              className="flex items-center gap-2 bg-yellow-700 hover:bg-yellow-800 px-4 py-2 rounded-lg transition-all font-bold"
+            >
+              <Undo2 className="w-4 h-4" />
+              Undo
+            </button>
+          </div>
+        )}
+
+        {/* Quick Action Bar */}
+        <div className="bg-gray-800 mx-4 mt-4 p-3 rounded-xl flex gap-2 overflow-x-auto shadow-lg">
+          <QuickActionButton
+            icon={isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            label="Voice"
+            onClick={toggleVoiceRecognition}
+            active={isListening}
+            color={isListening ? '#ef4444' : '#10b981'}
+          />
+          
+          <QuickActionButton
+            icon={<BarChart3 className="w-4 h-4" />}
+            label="Analytics"
+            onClick={() => setShowAnalytics(true)}
+            color="#8b5cf6"
+          />
+          
+          <QuickActionButton
+            icon={<Calculator className="w-4 h-4" />}
+            label="Enforce"
+            onClick={() => setShowEnforcementCalc(true)}
+            color="#06b6d4"
+          />
+          
+          <QuickActionButton
+            icon={<MessageSquare className="w-4 h-4" />}
+            label="Notes"
+            onClick={() => setShowCrewNotes(true)}
+            color="#f59e0b"
+          />
+        </div>
+
+        {/* Game Status */}
+        <div className="bg-gray-800 m-4 p-4 rounded-xl shadow-lg">
+          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <Clock className="w-5 h-5" />
+            Game Status
+          </h3>
+          
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <select
+              value={quarter}
+              onChange={(e) => setQuarter(e.target.value)}
+              className="p-3 bg-gray-700 rounded-lg text-white font-semibold"
+            >
+              <option value="1st">1st Quarter</option>
+              <option value="2nd">2nd Quarter</option>
+              <option value="3rd">3rd Quarter</option>
+              <option value="4th">4th Quarter</option>
+              <option value="OT">Overtime</option>
+            </select>
+            
+            <input
+              type="text"
+              value={gameTime}
+              onChange={(e) => setGameTime(e.target.value)}
+              placeholder="Time (0:00)"
+              className="p-3 bg-gray-700 rounded-lg text-white placeholder-gray-400 font-mono text-center"
+            />
           </div>
           
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowCrewManagement(true)}
-              className="p-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold transition-all"
-            >
-              Manage Crew
-            </button>
+          <div className="grid grid-cols-3 gap-4">
+            <input
+              type="number"
+              value={down}
+              onChange={(e) => setDown(e.target.value)}
+              placeholder="Down"
+              min="1"
+              max="4"
+              className="p-3 bg-gray-700 rounded-lg text-white placeholder-gray-400 text-center"
+            />
+            
+            <input
+              type="number"
+              value={distance}
+              onChange={(e) => setDistance(e.target.value)}
+              placeholder="Distance"
+              className="p-3 bg-gray-700 rounded-lg text-white placeholder-gray-400 text-center"
+            />
             
             <button
-              onClick={saveGameOffline}
-              className="p-2 bg-green-600 hover:bg-green-700 rounded-lg font-bold transition-all"
+              onClick={() => setShowFieldView(true)}
+              className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center gap-2 transition-all font-bold"
             >
-              Save Game
+              <MapPin className="w-4 h-4" />
+              {fieldPosition}
             </button>
           </div>
         </div>
 
-        {/* Main content */}
-        <div className="p-4">
-          {/* Penalty input section */}
-          <div className="bg-gray-800 p-4 rounded-lg shadow-md mb-4">
-            <h3 className="font-bold text-lg mb-2">Record Penalty</h3>
-            
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Penalty Type</label>
-                <select
-                  value={selectedPenalty}
-                  onChange={(e) => setSelectedPenalty(e.target.value)}
-                  className="w-full p-2 bg-gray-700 rounded text-white"
-                >
-                  <option value="">Select Penalty</option>
-                  {Object.entries(penaltyTypes).map(([code, data]) => (
-                    <option key={code} value={code}>
-                      {data.name} ({data.yards} yards)
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Player Number</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={playerNumber}
-                    onChange={(e) => setPlayerNumber(e.target.value)}
-                    className="w-full p-2 bg-gray-700 rounded text-white pr-10"
-                    placeholder="Enter player number"
-                  />
-                  <button
-                    onClick={() => setShowNumberPad(true)}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 bg-gray-600 rounded-full"
-                  >
-                    <TouchApp className="w-4 h-4 text-white" />
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Team</label>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setTeam('O')}
-                    className={`flex-1 p-2 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${
-                      team === 'O' ? 'bg-red-600' : 'bg-gray-700'
-                    }`}
-                  >
-                    <Users className="w-4 h-4" />
-                    Offense
-                  </button>
-                  <button
-                    onClick={() => setTeam('D')}
-                    className={`flex-1 p-2 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${
-                      team === 'D' ? 'bg-blue-600' : 'bg-gray-700'
-                    }`}
-                  >
-                    <Users className="w-4 h-4" />
-                    Defense
-                  </button>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Quarter</label>
-                <select
-                  value={quarter}
-                  onChange={(e) => setQuarter(e.target.value)}
-                  className="w-full p-2 bg-gray-700 rounded text-white"
-                >
-                  <option value="1st">1st Quarter</option>
-                  <option value="2nd">2nd Quarter</option>
-                  <option value="3rd">3rd Quarter</option>
-                  <option value="4th">4th Quarter</option>
-                  <option value="OT">Overtime</option>
-                </select>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Game Time</label>
-                <input
-                  type="text"
-                  value={gameTime}
-                  onChange={(e) => setGameTime(e.target.value)}
-                  className="w-full p-2 bg-gray-700 rounded text-white"
-                  placeholder="MM:SS"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Down & Distance</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={down}
-                    onChange={(e) => setDown(e.target.value)}
-                    className="flex-1 p-2 bg-gray-700 rounded text-white"
-                    placeholder="Down"
-                  />
-                  <input
-                    type="text"
-                    value={distance}
-                    onChange={(e) => setDistance(e.target.value)}
-                    className="flex-1 p-2 bg-gray-700 rounded text-white"
-                    placeholder="Distance"
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex gap-4">
-              <button
-                onClick={addPenalty}
-                className="flex-1 p-3 bg-green-600 hover:bg-green-700 rounded-lg font-bold transition-all flex items-center justify-center gap-2"
-              >
-                <Check className="w-5 h-5" />
-                Add Penalty
-              </button>
-              
-              <button
-                onClick={() => setShowAnalytics(true)}
-                className="flex-1 p-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold transition-all flex items-center justify-center gap-2"
-              >
-                <BarChart3 className="w-5 h-5" />
-                View Analytics
-              </button>
-            </div>
-          </div>
+        {/* Main Penalty Entry */}
+        <div className="bg-gray-800 m-4 p-4 rounded-xl shadow-lg">
+          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <Target className="w-5 h-5" />
+            Add Penalty
+          </h3>
           
-          {/* Penalty list */}
-          <div className="bg-gray-800 p-4 rounded-lg shadow-md">
-            <h3 className="font-bold text-lg mb-2">Recorded Penalties</h3>
+          {/* Team Selection */}
+          <TeamSelectionButtons
+            selectedTeam={team}
+            onTeamSelect={setTeam}
+            homeTeam={currentGame.homeTeam}
+            awayTeam={currentGame.awayTeam}
+          />
+
+          {/* Penalty Selection */}
+          <select
+            value={selectedPenalty}
+            onChange={(e) => setSelectedPenalty(e.target.value)}
+            className="w-full p-4 bg-gray-700 rounded-lg mb-4 text-white"
+          >
+            <option value="">Select Penalty Code</option>
+            {Object.entries(penaltyTypes)
+              .sort((a, b) => a[1].name.localeCompare(b[1].name))
+              .map(([code, data]) => (
+                <option key={code} value={code}>
+                  {code} - {data.name} ({data.yards} yards)
+                </option>
+              ))
+            }
+          </select>
+
+          {/* Player Number and Official */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <button
+              onClick={() => setShowNumberPad(true)}
+              className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold transition-all"
+            >
+              <div className="flex items-center justify-center gap-2">
+                <UserCheck className="w-4 h-4" />
+                <span>Player #{playerNumber || '00'}</span>
+              </div>
+            </button>
+            
+            <select
+              value={callingOfficial}
+              onChange={(e) => setCallingOfficial(e.target.value)}
+              className="p-4 bg-gray-700 rounded-lg text-white"
+            >
+              {officials.map(official => (
+                <option key={official} value={official}>{official}</option>
+              ))}
+            </select>
+          </div>
+
+          <input
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Description (optional)"
+            className="w-full p-4 bg-gray-700 rounded-lg mb-4 text-white placeholder-gray-400"
+          />
+
+          <button
+            onClick={addPenalty}
+            disabled={!selectedPenalty || !playerNumber}
+            className="w-full p-4 bg-green-600 disabled:bg-gray-600 rounded-lg font-bold text-white transition-all hover:bg-green-700 disabled:cursor-not-allowed shadow-lg"
+          >
+            {selectedPenalty && playerNumber ? 'Add Penalty' : 'Select Penalty & Player'}
+          </button>
+        </div>
+
+        {/* Google Sheets Sync Section */}
+        <GoogleSyncSection />
+
+        {/* Penalties List */}
+        <div className="bg-gray-800 m-4 p-4 rounded-xl shadow-lg">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+              <ClipboardList className="w-5 h-5" />
+              Game Penalties ({penalties.length})
+            </h3>
+            <button
+              onClick={copyQwikRefData}
+              className="flex items-center gap-2 p-3 bg-blue-600 hover:bg-blue-700 rounded-lg transition-all font-bold shadow-lg"
+            >
+              {copiedIndex === 'qwikref' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              QwikRef
+            </button>
+          </div>
+
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {penalties.map((penalty) => (
+              <PenaltyCard
+                key={penalty.id}
+                penalty={penalty}
+                homeTeam={currentGame.homeTeam}
+                awayTeam={currentGame.awayTeam}
+                onDelete={() => {
+                  setLastDeletedPenalty(penalty);
+                  setPenalties(penalties.filter(p => p.id !== penalty.id));
+                }}
+              />
+            ))}
             
             {penalties.length === 0 && (
-              <p className="text-center text-gray-500 text-sm py-4">
-                No penalties recorded yet
-              </p>
-            )}
-            
-            {penalties.length > 0 && (
-              <div className="space-y-2">
-                {penalties.map(penalty => (
-                  <div
-                    key={penalty.id}
-                    className="p-3 bg-gray-700 rounded-lg flex justify-between items-center"
-                  >
-                    <div>
-                      <div className="text-sm text-gray-400">
-                        {penalty.quarter} - {penalty.time}
-                      </div>
-                      <div className="font-bold">
-                        {penalty.name} ({penalty.yards} yards)
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setLastDeletedPenalty(penalty);
-                          setPenalties(prev => prev.filter(p => p.id !== penalty.id));
-                          playSound('ding');
-                        }}
-                        className="p-2 bg-red-600 hover:bg-red-700 rounded-full transition-all"
-                        title="Delete Penalty"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                      
-                      <button
-                        onClick={() => {
-                          setSelectedPenalty(penalty.code);
-                          setPlayerNumber(penalty.player);
-                          setDescription(penalty.description);
-                          setTeam(penalty.team);
-                          setQuarter(penalty.quarter);
-                          setGameTime(penalty.time);
-                          setDown(penalty.down.split(' & ')[0]);
-                          setDistance(penalty.down.split(' & ')[1]);
-                          setFieldPosition(penalty.fieldPosition || 50);
-                          setShowNumberPad(false);
-                        }}
-                        className="p-2 bg-yellow-600 hover:bg-yellow-700 rounded-full transition-all"
-                        title="Edit Penalty"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              <div className="text-center py-8 text-gray-400">
+                <ClipboardList className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>No penalties recorded yet</p>
+                <p className="text-sm">Add your first penalty above</p>
               </div>
             )}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="bg-gray-800 p-4 border-t border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-400">
-              <span>Version 1.0.0</span>
-            </div>
-            
-            <div className="text-sm text-gray-400">
-              <span>© 2025 RMAC Officials. All rights reserved.</span>
-            </div }
           </div>
         </div>
       </div>
@@ -1419,3 +1449,245 @@ const RMACOfficialsPWA: React.FC = () => {
 };
 
 export default RMACOfficialsPWA;
+
+// Team Color Provider Component
+interface TeamColorProviderProps {
+  homeTeam: string;
+  awayTeam: string;
+  children: React.ReactNode;
+}
+
+const TeamColorProvider: React.FC<TeamColorProviderProps> = ({ homeTeam, awayTeam, children }) => {
+  const homeColors = RMACTeamColors[homeTeam];
+  const awayColors = RMACTeamColors[awayTeam];
+  
+  return (
+    <div className="rmac-team-colors">
+      {children}
+    </div>
+  );
+};
+
+// Enhanced Team Indicator Component
+const TeamIndicator: React.FC<{ team: string; isHome: boolean }> = ({ team, isHome }) => {
+  const colors = RMACTeamColors[team];
+  const style = {
+    backgroundColor: colors?.primary || (isHome ? '#ef4444' : '#3b82f6'),
+    color: colors?.text || '#ffffff',
+    borderColor: colors?.accent || '#ffffff'
+  };
+  
+  return (
+    <div 
+      className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-bold border"
+      style={style}
+    >
+      <div 
+        className="w-2 h-2 rounded-full" 
+        style={{ backgroundColor: colors?.accent || '#ffffff' }}
+      />
+      {team}
+      <span className="text-xs opacity-75">{isHome ? 'HOME' : 'AWAY'}</span>
+    </div>
+  );
+};
+
+// Enhanced Penalty Card Component
+const PenaltyCard: React.FC<{ penalty: Penalty; onDelete: () => void; homeTeam: string; awayTeam: string }> = ({ 
+  penalty, 
+  onDelete, 
+  homeTeam, 
+  awayTeam 
+}) => {
+  const isOffense = penalty.team === 'O';
+  const teamName = isOffense ? homeTeam : awayTeam;
+  const teamColors = RMACTeamColors[teamName];
+  
+  const cardStyle = {
+    borderLeftColor: teamColors?.primary || (isOffense ? '#ef4444' : '#3b82f6'),
+    background: `linear-gradient(90deg, ${teamColors?.primary || (isOffense ? '#ef4444' : '#3b82f6')}10 0%, transparent 50%)`
+  };
+  
+  return (
+    <div 
+      className="bg-gray-700 p-3 rounded-lg flex justify-between items-start border-l-4 transition-all hover:translate-x-1 hover:shadow-lg"
+      style={cardStyle}
+    >
+      <div className="flex-1">
+        <div className="flex items-start gap-3">
+          <div className="flex-1">
+            <div className="font-bold text-white flex items-center gap-2">
+              <span style={{ color: teamColors?.primary || (isOffense ? '#ef4444' : '#3b82f6') }}>
+                {penalty.code}
+              </span>
+              <span>-</span>
+              <span>{penalty.name}</span>
+              <span className="text-lg font-bold">#{penalty.player}</span>
+            </div>
+            
+            <div className="text-sm text-gray-300 mt-1 flex items-center gap-3">
+              <span>{penalty.quarter} {penalty.time}</span>
+              <span>•</span>
+              <span>{penalty.down}</span>
+              <span>•</span>
+              <span className="font-semibold">{penalty.callingOfficial}</span>
+            </div>
+            
+            {penalty.description && (
+              <div className="text-xs text-gray-400 mt-2 italic bg-gray-800 bg-opacity-50 p-2 rounded">
+                {penalty.description}
+              </div>
+            )}
+          </div>
+          
+          <div className="flex flex-col items-end gap-1">
+            <TeamIndicator team={teamName} isHome={isOffense} />
+            <div 
+              className="text-lg font-bold px-2 py-1 rounded text-white"
+              style={{ backgroundColor: penalty.yards >= 15 ? '#ef4444' : penalty.yards >= 10 ? '#f59e0b' : '#10b981' }}
+            >
+              {penalty.yards} yds
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <button
+        onClick={onDelete}
+        className="ml-3 p-2 text-red-400 hover:text-red-300 hover:bg-red-900 hover:bg-opacity-30 rounded transition-all"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
+
+// Enhanced Game Header Component
+const GameHeader: React.FC<{ game: Game; isOnline: boolean; onSave: () => void }> = ({ 
+  game, 
+  isOnline, 
+  onSave 
+}) => {
+  return (
+    <div className="p-4 shadow-lg sticky top-0 z-10 bg-gray-800">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-xl font-bold text-white mb-2">RMAC Officials Assistant</h1>
+          <div className="flex items-center gap-3">
+            <TeamIndicator team={game.homeTeam} isHome={true} />
+            <span className="text-white font-bold">VS</span>
+            <TeamIndicator team={game.awayTeam} isHome={false} />
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <div className="text-xs text-gray-300">Status</div>
+            <div className="flex items-center gap-2">
+              {isOnline ? (
+                <>
+                  <Wifi className="w-4 h-4 text-green-400" />
+                  <span className="text-xs text-green-400">Online</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff className="w-4 h-4 text-red-400" />
+                  <span className="text-xs text-red-400">Offline</span>
+                </>
+              )}
+            </div>
+          </div>
+          
+          <button
+            onClick={onSave}
+            className="p-3 bg-blue-600 hover:bg-blue-700 rounded-lg transition-all shadow-lg"
+          >
+            <Save className="w-5 h-5 text-white" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Enhanced Team Selection Buttons
+const TeamSelectionButtons: React.FC<{ 
+  selectedTeam: string; 
+  onTeamSelect: (team: string) => void;
+  homeTeam: string;
+  awayTeam: string;
+}> = ({ selectedTeam, onTeamSelect, homeTeam, awayTeam }) => {
+  const homeColors = RMACTeamColors[homeTeam];
+  const awayColors = RMACTeamColors[awayTeam];
+  
+  return (
+    <div className="grid grid-cols-2 gap-3 mb-4">
+      <button
+        onClick={() => onTeamSelect('O')}
+        className={`p-4 rounded-xl font-bold transition-all duration-300 ${
+          selectedTeam === 'O' ? 'scale-105 shadow-lg' : 'hover:scale-102'
+        }`}
+        style={{
+          backgroundColor: selectedTeam === 'O' ? homeColors?.primary || '#ef4444' : '#374151',
+          color: selectedTeam === 'O' ? homeColors?.text || '#ffffff' : '#ffffff',
+          border: `2px solid ${selectedTeam === 'O' ? homeColors?.accent || '#fbbf24' : 'transparent'}`
+        }}
+      >
+        <div className="flex items-center justify-center gap-2">
+          <div 
+            className="w-3 h-3 rounded-full" 
+            style={{ backgroundColor: homeColors?.accent || '#fbbf24' }}
+          />
+          <span>OFFENSE</span>
+        </div>
+        <div className="text-xs mt-1 opacity-80">{homeTeam}</div>
+      </button>
+      
+      <button
+        onClick={() => onTeamSelect('D')}
+        className={`p-4 rounded-xl font-bold transition-all duration-300 ${
+          selectedTeam === 'D' ? 'scale-105 shadow-lg' : 'hover:scale-102'
+        }`}
+        style={{
+          backgroundColor: selectedTeam === 'D' ? awayColors?.primary || '#3b82f6' : '#374151',
+          color: selectedTeam === 'D' ? awayColors?.text || '#ffffff' : '#ffffff',
+          border: `2px solid ${selectedTeam === 'D' ? awayColors?.accent || '#60a5fa' : 'transparent'}`
+        }}
+      >
+        <div className="flex items-center justify-center gap-2">
+          <div 
+            className="w-3 h-3 rounded-full" 
+            style={{ backgroundColor: awayColors?.accent || '#60a5fa' }}
+          />
+          <span>DEFENSE</span>
+        </div>
+        <div className="text-xs mt-1 opacity-80">{awayTeam}</div>
+      </button>
+    </div>
+  );
+};
+
+// Enhanced Quick Action Button
+const QuickActionButton: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  active?: boolean;
+  color?: string;
+}> = ({ icon, label, onClick, active = false, color = '#6b7280' }) => {
+  return (
+    <button
+      onClick={onClick}
+      className={`p-3 rounded-lg flex items-center gap-2 whitespace-nowrap transition-all duration-200 hover:scale-105 ${
+        active ? 'shadow-lg' : ''
+      }`}
+      style={{
+        backgroundColor: active ? color : '#374151',
+        color: '#ffffff'
+      }}
+    >
+      {icon}
+      <span className="font-semibold">{label}</span>
+    </button>
+  );
+};
