@@ -1,4 +1,4 @@
-import { google } from 'googleapis';
+import { google, sheets_v4 } from 'googleapis';
 
 // Interfaces for the function parameters
 interface Penalty {
@@ -165,7 +165,7 @@ export async function syncPenaltiesToSheet(
 }
 
 // Helper function to get or create the penalties sheet
-async function ensurePenaltiesSheet(sheets: any, spreadsheetId: string): Promise<string> {
+async function ensurePenaltiesSheet(sheets: sheets_v4.Sheets, spreadsheetId: string): Promise<string> {
   const sheetName = 'RMAC Penalties';
   
   try {
@@ -176,7 +176,7 @@ async function ensurePenaltiesSheet(sheets: any, spreadsheetId: string): Promise
 
     // Check if our sheet exists
     const sheetExists = spreadsheet.data.sheets?.some(
-      (sheet: any) => sheet.properties?.title === sheetName
+      (sheet: sheets_v4.Schema$Sheet) => sheet.properties?.title === sheetName
     );
 
     if (!sheetExists) {

@@ -9,6 +9,83 @@ import {
   Calendar, FileText, Thermometer
 } from 'lucide-react';
 
+// Web Speech API type declarations
+declare global {
+  interface Window {
+    SpeechRecognition: typeof SpeechRecognition;
+    webkitSpeechRecognition: typeof SpeechRecognition;
+  }
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  grammars: SpeechGrammarList;
+  interimResults: boolean;
+  lang: string;
+  maxAlternatives: number;
+  serviceURI: string;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onaudiostart: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onaudioend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any) | null;
+  onnomatch: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
+  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
+  onsoundstart: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onsoundend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onspeechstart: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onspeechend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onstart: ((this: SpeechRecognition, ev: Event) => any) | null;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  readonly error: string;
+  readonly message: string;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  readonly results: SpeechRecognitionResultList;
+  readonly resultIndex: number;
+}
+
+interface SpeechRecognitionResultList {
+  readonly length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  readonly isFinal: boolean;
+  readonly length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+  readonly transcript: string;
+  readonly confidence: number;
+}
+
+interface SpeechGrammarList {
+  readonly length: number;
+  item(index: number): SpeechGrammar;
+  [index: number]: SpeechGrammar;
+  addFromURI(src: string, weight?: number): void;
+  addFromString(string: string, weight?: number): void;
+}
+
+interface SpeechGrammar {
+  src: string;
+  weight: number;
+}
+
+declare var SpeechRecognition: {
+  prototype: SpeechRecognition;
+  new(): SpeechRecognition;
+};
+
 // Interfaces
 interface Penalty {
   id: number;
@@ -275,8 +352,7 @@ const RMACOfficialsPWA: React.FC = () => {
 
   // Refs
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const recognitionRef = useRef<any>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   const officials = ['R', 'CJ', 'U', 'HL', 'LJ', 'SJ', 'FJ', 'BJ'];
 
@@ -372,123 +448,6 @@ const RMACOfficialsPWA: React.FC = () => {
       setIsListening(false);
       setVoiceCommand('');
       alert('Voice recognition failed. Please try again.');
-    }
-  };
-
-  const parseVoiceCommand = (command: string) => {
-    const lowerCommand = command.toLowerCase();
-    
-    Object.entries(penaltyTypes).forEach(([code, data]) => {
-      if (lowerCommand.includes(data.name.toLowerCase()) || lowerCommand.includes(code.toLowerCase())) {
-        setSelectedPenalty(code);
-      }
-    });
-    
-    const numberMatch = lowerCommand.match(/number (\d+)/);
-    if (numberMatch) {
-      setPlayerNumber(numberMatch[1]);
-    }
-    
-    if (lowerCommand.includes('offense') || lowerCommand.includes('offensive')) {
-      setTeam('O');
-    } else if (lowerCommand.includes('defense') || lowerCommand.includes('defensive')) {
-      setTeam('D');
-    }
-  };
-
-  const addPenalty = (): void => {
-    if (!selectedPenalty || !playerNumber) {
-      alert('Please select penalty type and enter player number');
-      return;
-    }
-
-    const playerNum = parseInt(playerNumber);
-    if (isNaN(playerNum) || playerNum < 0 || playerNum > 99) {
-      alert('Please enter a valid player number (0-99)');
-      return;
-    }
-
-    const penalty: Penalty = {
-      id: Date.now(),
-      code: selectedPenalty,
-      name: penaltyTypes[selectedPenalty].name,
-      yards: penaltyTypes[selectedPenalty].yards,
-      team: team,
-      player: playerNumber,
-      description: description,
-      quarter: quarter,
-      time: gameTime,
-      down: `${down} & ${distance}`,
-      callingOfficial: callingOfficial,
-      fieldPosition: fieldPosition,
-      voiceNote: voiceCommand,
-      timestamp: new Date().toISOString()
-    };
-
-    setPenalties([penalty, ...penalties]);
-    playSound('whistle');
-    
-    setSelectedPenalty('');
-    setPlayerNumber('');
-    setDescription('');
-    setShowNumberPad(false);
-    setVoiceCommand('');
-  };
-
-  const handleNumberPadClick = (num: string): void => {
-    if (num === 'C') {
-      setPlayerNumber('');
-    } else if (num === 'OK') {
-      if (playerNumber) {
-        const playerNum = parseInt(playerNumber);
-        if (isNaN(playerNum) || playerNum < 0 || playerNum > 99) {
-          alert('Please enter a valid player number (0-99)');
-          return;
-        }
-        addPenalty();
-      } else {
-        alert('Please enter a player number');
-      }
-    } else {
-      const newNumber = playerNumber + num;
-      const numValue = parseInt(newNumber);
-      if (numValue <= 99) {
-        setPlayerNumber(newNumber);
-      }
-    }
-  };
-
-  const generateQwikRefFormat = (): string => {
-    return penalties.map(p => 
-      `${p.quarter} ${p.time} - ${p.code} ${p.name} #${p.player} ${p.team === 'O' ? 'OFF' : 'DEF'} (${p.callingOfficial})`
-    ).join('\n');
-  };
-
-  const copyQwikRefData = async (): Promise<void> => {
-    const data = generateQwikRefFormat();
-    try {
-      await navigator.clipboard.writeText(data);
-      setCopiedIndex('qwikref');
-      setTimeout(() => setCopiedIndex(null), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-      const textArea = document.createElement('textarea');
-      textArea.value = data;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-999999px';
-      textArea.style.top = '-999999px';
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      try {
-        document.execCommand('copy');
-        setCopiedIndex('qwikref');
-        setTimeout(() => setCopiedIndex(null), 2000);
-      } catch (fallbackErr) {
-        console.error('Fallback copy failed:', fallbackErr);
-        alert('Copy failed. Please select and copy the text manually.');
-      }
-      document.body.removeChild(textArea);
     }
   };
 
@@ -592,403 +551,100 @@ const RMACOfficialsPWA: React.FC = () => {
     }
   };
 
-  const addGameEvent = (type: GameEvent['type'], notes: string = '', team?: string, player?: string) => {
-    const event: GameEvent = {
-      id: Date.now().toString(),
-      type,
-      team,
-      player,
+  const addPenalty = (): void => {
+    if (!selectedPenalty || !playerNumber) {
+      alert('Please select penalty type and enter player number');
+      return;
+    }
+
+    const playerNum = parseInt(playerNumber);
+    if (isNaN(playerNum) || playerNum < 0 || playerNum > 99) {
+      alert('Please enter a valid player number (0-99)');
+      return;
+    }
+
+    const penalty: Penalty = {
+      id: Date.now(),
+      code: selectedPenalty,
+      name: penaltyTypes[selectedPenalty].name,
+      yards: penaltyTypes[selectedPenalty].yards,
+      team: team,
+      player: playerNumber,
+      description: description,
+      quarter: quarter,
       time: gameTime,
-      quarter,
-      notes,
+      down: `${down} & ${distance}`,
+      callingOfficial: callingOfficial,
+      fieldPosition: fieldPosition,
+      voiceNote: voiceCommand,
       timestamp: new Date().toISOString()
     };
-    setGameEvents(prev => [event, ...prev]);
+
+    setPenalties([penalty, ...penalties]);
+    playSound('whistle');
+    
+    setSelectedPenalty('');
+    setPlayerNumber('');
+    setDescription('');
+    setShowNumberPad(false);
+    setVoiceCommand('');
   };
 
-  const getWeeklyTrends = (): WeeklyTrends => {
-    const allPenalties = savedGames.flatMap(game => game.penalties || []);
-    
-    const penaltyCounts = allPenalties.reduce((acc, p) => {
-      acc[p.code] = (acc[p.code] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    
-    const mostCommonPenalties = Object.entries(penaltyCounts)
-      .map(([code, count]) => ({ 
-        code, 
-        count, 
-        percentage: Math.round((count / allPenalties.length) * 100) 
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
-
-    const quarterCounts = allPenalties.reduce((acc, p) => {
-      acc[p.quarter] = (acc[p.quarter] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const busyQuarters = Object.entries(quarterCounts)
-      .map(([quarter, count]) => ({ quarter, count }))
-      .sort((a, b) => b.count - a.count);
-
-    const officialCounts = allPenalties.reduce((acc, p) => {
-      acc[p.callingOfficial] = (acc[p.callingOfficial] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const avgCallsPerOfficial = allPenalties.length / officials.length;
-    const officialWorkload = Object.entries(officialCounts)
-      .map(([official, count]) => ({ 
-        official, 
-        count, 
-        average: Math.round((count / avgCallsPerOfficial) * 100) 
-      }))
-      .sort((a, b) => b.count - a.count);
-
-    const situationalTrends = {
-      thirdDownPenalties: allPenalties.filter(p => p.down?.startsWith('3')).length,
-      redZonePenalties: allPenalties.filter(p => (p.fieldPosition || 50) > 80).length,
-      twoMinutePenalties: allPenalties.filter(p => {
-        const mins = parseInt(p.time.split(':')[0]);
-        return mins < 2;
-      }).length,
-      overtimePenalties: allPenalties.filter(p => p.quarter === 'OT').length
-    };
-
-    const crewVariance = Math.round(
-      Object.values(officialCounts).reduce((sum, count) => 
-        sum + Math.pow(count - avgCallsPerOfficial, 2), 0
-      ) / officials.length
-    );
-
-    return {
-      mostCommonPenalties,
-      busyQuarters,
-      officialWorkload,
-      situationalTrends,
-      consistencyMetrics: {
-        crewVariance,
-        positionBalance: 85,
-        callAccuracy: 92
+  const handleNumberPadClick = (num: string): void => {
+    if (num === 'C') {
+      setPlayerNumber('');
+    } else if (num === 'OK') {
+      if (playerNumber) {
+        const playerNum = parseInt(playerNumber);
+        if (isNaN(playerNum) || playerNum < 0 || playerNum > 99) {
+          alert('Please enter a valid player number (0-99)');
+          return;
+        }
+        addPenalty();
+      } else {
+        alert('Please enter a player number');
       }
-    };
+    } else {
+      const newNumber = playerNumber + num;
+      const numValue = parseInt(newNumber);
+      if (numValue <= 99) {
+        setPlayerNumber(newNumber);
+      }
+    }
   };
 
-  // Component definitions
-  const NumberPad = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowNumberPad(false)}>
-      <div className="bg-gray-800 p-6 rounded-lg" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-xl font-bold mb-4 text-center text-white">Enter Player Number</h3>
-        <div className="text-center mb-4">
-          <input 
-            type="text" 
-            value={playerNumber} 
-            readOnly 
-            className="text-2xl font-bold bg-gray-700 text-white p-2 rounded w-20 text-center"
-          />
-        </div>
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          {[1,2,3,4,5,6,7,8,9,'C',0,'OK'].map(num => (
-            <button
-              key={num}
-              onClick={() => handleNumberPadClick(num.toString())}
-              className={`p-4 rounded font-bold text-xl transition-colors ${
-                num === 'OK' ? 'bg-green-600 hover:bg-green-700' : 
-                num === 'C' ? 'bg-red-600 hover:bg-red-700' : 
-                'bg-gray-700 hover:bg-gray-600'
-              } text-white`}
-            >
-              {num}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  const AnalyticsDashboard = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowAnalytics(false)}>
-      <div className="bg-gray-800 p-6 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-2xl font-bold mb-6 text-white">Game Analytics</h2>
-        <div className="space-y-4">
-          <div className="bg-gray-700 p-4 rounded">
-            <h3 className="font-bold mb-2">Penalty Summary</h3>
-            <p>Total Penalties: {penalties.length}</p>
-            <p>Offensive: {penalties.filter(p => p.team === 'O').length}</p>
-            <p>Defensive: {penalties.filter(p => p.team === 'D').length}</p>
-          </div>
-        </div>
-        <button
-          onClick={() => setShowAnalytics(false)}
-          className="w-full bg-gray-600 hover:bg-gray-700 p-3 rounded font-bold text-white transition-colors mt-4"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  );
-
-  const FieldView = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowFieldView(false)}>
-      <div className="bg-gray-800 p-6 rounded-lg" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-2xl font-bold mb-6 text-white">Field Position</h2>
-        <div className="space-y-4">
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={fieldPosition}
-            onChange={(e) => setFieldPosition(Number(e.target.value))}
-            className="w-full"
-          />
-          <p className="text-center text-white">{fieldPosition} yard line</p>
-        </div>
-        <button
-          onClick={() => setShowFieldView(false)}
-          className="w-full bg-gray-600 hover:bg-gray-700 p-3 rounded font-bold text-white transition-colors mt-4"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  );
-
-  const EnforcementCalculator = () => {
-    const [calcPenalty, setCalcPenalty] = useState<string>('');
-    const [calcDown, setCalcDown] = useState<number>(1);
-    const [calcDistance, setCalcDistance] = useState<number>(10);
-    const [calcFieldPos, setCalcFieldPos] = useState<number>(50);
-    const [enforcement, setEnforcement] = useState<PenaltyEnforcement | null>(null);
-
-    const calculateEnforcement = () => {
-      if (!calcPenalty) return;
-      
-      const penalty: Penalty = {
-        id: 0,
-        code: calcPenalty,
-        name: penaltyTypes[calcPenalty].name,
-        yards: penaltyTypes[calcPenalty].yards,
-        team: team,
-        player: '00',
-        description: '',
-        quarter: quarter,
-        time: gameTime,
-        down: `${calcDown} & ${calcDistance}`,
-        callingOfficial: callingOfficial,
-        fieldPosition: calcFieldPos,
-        timestamp: new Date().toISOString()
-      };
-
-      const result = calculatePenaltyEnforcement(penalty, calcDown, calcDistance, calcFieldPos);
-      setEnforcement(result);
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowEnforcementCalc(false)}>
-        <div className="bg-gray-800 p-6 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-          <h2 className="text-2xl font-bold mb-6 text-white flex items-center gap-2">
-            <Calculator className="w-6 h-6" />
-            Penalty Enforcement Calculator
-          </h2>
-          
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Current Situation</label>
-              <div className="space-y-2">
-                <input
-                  type="number"
-                  value={calcDown}
-                  onChange={(e) => setCalcDown(Number(e.target.value))}
-                  placeholder="Down"
-                  min="1" max="4"
-                  className="w-full p-2 bg-gray-700 rounded text-white"
-                />
-                <input
-                  type="number"
-                  value={calcDistance}
-                  onChange={(e) => setCalcDistance(Number(e.target.value))}
-                  placeholder="Distance"
-                  className="w-full p-2 bg-gray-700 rounded text-white"
-                />
-                <input
-                  type="number"
-                  value={calcFieldPos}
-                  onChange={(e) => setCalcFieldPos(Number(e.target.value))}
-                  placeholder="Field Position"
-                  min="0" max="100"
-                  className="w-full p-2 bg-gray-700 rounded text-white"
-                />
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Penalty</label>
-              <select
-                value={calcPenalty}
-                onChange={(e) => setCalcPenalty(e.target.value)}
-                className="w-full p-2 bg-gray-700 rounded text-white mb-2"
-              >
-                <option value="">Select Penalty</option>
-                {Object.entries(penaltyTypes).map(([code, data]) => (
-                  <option key={code} value={code}>
-                    {code} - {data.name} ({data.yards} yards)
-                  </option>
-                ))}
-              </select>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setTeam('O')}
-                  className={`p-2 rounded font-bold ${team === 'O' ? 'bg-red-600' : 'bg-gray-700'}`}
-                >
-                  Offense
-                </button>
-                <button
-                  onClick={() => setTeam('D')}
-                  className={`p-2 rounded font-bold ${team === 'D' ? 'bg-blue-600' : 'bg-gray-700'}`}
-                >
-                  Defense
-                </button>
-              </div>
-            </div>
-          </div>
-          
-          <button
-            onClick={calculateEnforcement}
-            className="w-full p-3 bg-green-600 hover:bg-green-700 rounded font-bold mb-4 transition-colors"
-          >
-            Calculate Enforcement
-          </button>
-          
-          {enforcement && (
-            <div className="bg-gray-700 p-4 rounded mb-4">
-              <h3 className="font-bold text-green-400 mb-2">Enforcement Result:</h3>
-              <div className="space-y-2 text-sm">
-                <div>Next Down: <span className="font-bold">{enforcement.newDown} & {enforcement.newDistance}</span></div>
-                <div>Field Position: <span className="font-bold">{enforcement.newFieldPosition} yard line</span></div>
-                {enforcement.automaticFirstDown && <div className="text-green-400">✓ Automatic First Down</div>}
-                {enforcement.lossOfDown && <div className="text-red-400">✓ Loss of Down</div>}
-                {enforcement.halfDistance && <div className="text-yellow-400">✓ Half Distance Penalty</div>}
-                {enforcement.safetyScored && <div className="text-red-400">✓ Safety Scored</div>}
-                {enforcement.explanation && (
-                  <div className="text-blue-400 mt-2 italic">{enforcement.explanation}</div>
-                )}
-              </div>
-            </div>
-          )}
-          
-          <button
-            onClick={() => setShowEnforcementCalc(false)}
-            className="w-full bg-gray-600 hover:bg-gray-700 p-3 rounded font-bold text-white transition-colors"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    );
+  const generateQwikRefFormat = (): string => {
+    return penalties.map(p => 
+      `${p.quarter} ${p.time} - ${p.code} ${p.name} #${p.player} ${p.team === 'O' ? 'OFF' : 'DEF'} (${p.callingOfficial})`
+    ).join('\n');
   };
 
-  const CrewNotesPanel = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowCrewNotes(false)}>
-      <div className="bg-gray-800 p-6 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-2xl font-bold mb-6 text-white flex items-center gap-2">
-          <MessageSquare className="w-6 h-6" />
-          Crew Communication
-        </h2>
-        
-        <div className="bg-gray-700 p-4 rounded mb-4">
-          <div className="grid grid-cols-2 gap-2 mb-2">
-            <select
-              value={noteCategory}
-              onChange={(e) => setNoteCategory(e.target.value as any)}
-              className="p-2 bg-gray-600 rounded text-white"
-            >
-              <option value="general">General</option>
-              <option value="penalty">Penalty Related</option>
-              <option value="situation">Game Situation</option>
-              <option value="communication">Communication</option>
-            </select>
-            
-            <select
-              value={notePriority}
-              onChange={(e) => setNotePriority(e.target.value as any)}
-              className="p-2 bg-gray-600 rounded text-white"
-            >
-              <option value="low">Low Priority</option>
-              <option value="medium">Medium Priority</option>
-              <option value="high">High Priority</option>
-            </select>
-          </div>
-          
-          <textarea
-            value={currentNote}
-            onChange={(e) => setCurrentNote(e.target.value)}
-            placeholder="Enter crew note..."
-            className="w-full p-2 bg-gray-600 rounded text-white mb-2"
-            rows={2}
-          />
-          
-          <button
-            onClick={addCrewNote}
-            className="w-full p-2 bg-blue-600 hover:bg-blue-700 rounded font-bold transition-colors"
-          >
-            Add Note
-          </button>
-        </div>
-        
-        <div className="space-y-2 max-h-96 overflow-y-auto">
-          {crewNotes.map(note => (
-            <div
-              key={note.id}
-              className={`p-3 rounded border-l-4 ${
-                note.priority === 'high' ? 'border-red-500 bg-red-900 bg-opacity-20' :
-                note.priority === 'medium' ? 'border-yellow-500 bg-yellow-900 bg-opacity-20' :
-                'border-green-500 bg-green-900 bg-opacity-20'
-              }`}
-            >
-              <div className="flex justify-between items-start mb-1">
-                <span className="font-bold text-white">{note.author}</span>
-                <span className="text-xs text-gray-400">{note.quarter} - {note.gameTime}</span>
-              </div>
-              <p className="text-sm text-gray-200 mb-1">{note.content}</p>
-              <div className="flex gap-2">
-                <span className={`text-xs px-2 py-1 rounded ${
-                  note.category === 'penalty' ? 'bg-red-600' :
-                  note.category === 'situation' ? 'bg-yellow-600' :
-                  note.category === 'communication' ? 'bg-blue-600' : 'bg-gray-600'
-                }`}>
-                  {note.category}
-                </span>
-                <span className={`text-xs px-2 py-1 rounded ${
-                  note.priority === 'high' ? 'bg-red-600' :
-                  note.priority === 'medium' ? 'bg-yellow-600' : 'bg-green-600'
-                }`}>
-                  {note.priority}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-        
-        <button
-          onClick={() => setShowCrewNotes(false)}
-          className="w-full bg-gray-600 hover:bg-gray-700 p-3 rounded font-bold text-white transition-colors mt-4"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  );
-
-  // Helper function to get current week
-  const getCurrentWeek = (): number => {
-    const seasonStart = new Date('2025-09-06');
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - seasonStart.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    const weekNumber = Math.ceil(diffDays / 7);
-    return Math.min(Math.max(1, weekNumber), 12);
+  const copyQwikRefData = async (): Promise<void> => {
+    const data = generateQwikRefFormat();
+    try {
+      await navigator.clipboard.writeText(data);
+      setCopiedIndex('qwikref');
+      setTimeout(() => setCopiedIndex(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      const textArea = document.createElement('textarea');
+      textArea.value = data;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        setCopiedIndex('qwikref');
+        setTimeout(() => setCopiedIndex(null), 2000);
+      } catch (fallbackErr) {
+        console.error('Fallback copy failed:', fallbackErr);
+        alert('Copy failed. Please select and copy the text manually.');
+      }
+      document.body.removeChild(textArea);
+    }
   };
 
   // Google Sheets sync function
@@ -1209,7 +865,13 @@ const RMACOfficialsPWA: React.FC = () => {
   return (
     <TeamColorProvider homeTeam={currentGame.homeTeam} awayTeam={currentGame.awayTeam}>
       <div className="min-h-screen bg-gray-900 text-white pb-20">
-        {showNumberPad && <NumberPad />}
+        {showNumberPad && (
+          <NumberPad 
+            playerNumber={playerNumber}
+            onNumberClick={handleNumberPadClick}
+            onClose={() => setShowNumberPad(false)}
+          />
+        )}
         {showAnalytics && <AnalyticsDashboard />}
         {showFieldView && <FieldView />}
         {showEnforcementCalc && <EnforcementCalculator />}
@@ -1687,7 +1349,135 @@ const QuickActionButton: React.FC<{
       }}
     >
       {icon}
-      <span className="font-semibold">{label}</span>
+      <span className="text-sm font-bold">{label}</span>
     </button>
   );
 };
+// NumberPad Component
+const NumberPad: React.FC<{
+  playerNumber: string;
+  onNumberClick: (num: string) => void;
+  onClose: () => void;
+}> = ({ playerNumber, onNumberClick, onClose }) => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-gray-800 p-6 rounded-xl shadow-xl max-w-sm w-full mx-4">
+        <h3 className="text-lg font-bold mb-4 text-center">Enter Player Number</h3>
+        
+        <div className="text-center mb-4">
+          <div className="text-3xl font-bold text-white bg-gray-700 p-4 rounded-lg">
+            #{playerNumber || '00'}
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+            <button
+              key={num}
+              onClick={() => onNumberClick(num.toString())}
+              className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg text-xl font-bold transition-all"
+            >
+              {num}
+            </button>
+          ))}
+          <button
+            onClick={() => onNumberClick('C')}
+            className="p-4 bg-red-600 hover:bg-red-700 rounded-lg text-xl font-bold transition-all"
+          >
+            C
+          </button>
+          <button
+            onClick={() => onNumberClick('0')}
+            className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg text-xl font-bold transition-all"
+          >
+            0
+          </button>
+          <button
+            onClick={() => onNumberClick('OK')}
+            className="p-4 bg-green-600 hover:bg-green-700 rounded-lg text-xl font-bold transition-all"
+          >
+            OK
+          </button>
+        </div>
+        
+        <button
+          onClick={onClose}
+          className="w-full p-3 bg-gray-600 hover:bg-gray-700 rounded-lg font-bold transition-all"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Analytics Dashboard Component (placeholder)
+const AnalyticsDashboard: React.FC = () => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-gray-800 p-6 rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-96 overflow-y-auto">
+        <h3 className="text-lg font-bold mb-4">Analytics Dashboard</h3>
+        <p className="text-gray-400">Analytics features coming soon...</p>
+      </div>
+    </div>
+  );
+};
+
+// Field View Component (placeholder)
+const FieldView: React.FC = () => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-gray-800 p-6 rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-96 overflow-y-auto">
+        <h3 className="text-lg font-bold mb-4">Field View</h3>
+        <p className="text-gray-400">Field visualization coming soon...</p>
+      </div>
+    </div>
+  );
+};
+
+// Enforcement Calculator Component (placeholder)
+const EnforcementCalculator: React.FC = () => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-gray-800 p-6 rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-96 overflow-y-auto">
+        <h3 className="text-lg font-bold mb-4">Penalty Enforcement Calculator</h3>
+        <p className="text-gray-400">Enforcement calculator coming soon...</p>
+      </div>
+    </div>
+  );
+};
+
+// Crew Notes Panel Component (placeholder)
+const CrewNotesPanel: React.FC = () => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-gray-800 p-6 rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-96 overflow-y-auto">
+        <h3 className="text-lg font-bold mb-4">Crew Notes</h3>
+        <p className="text-gray-400">Crew notes feature coming soon...</p>
+      </div>
+    </div>
+  );
+};
+
+// Helper function to calculate the current week of the football season
+function getCurrentWeek(): number {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  
+  // College football season typically starts in late August/early September
+  // Week 1 is usually the Saturday of Labor Day weekend or the week before
+  const seasonStart = new Date(currentYear, 7, 29); // August 29th as a baseline
+  
+  // Find the first Saturday on or after the season start date
+  const daysUntilSaturday = (6 - seasonStart.getDay()) % 7;
+  const firstSaturday = new Date(seasonStart);
+  firstSaturday.setDate(seasonStart.getDate() + daysUntilSaturday);
+  
+  // Calculate weeks since season start
+  const timeDiff = now.getTime() - firstSaturday.getTime();
+  const daysDiff = Math.floor(timeDiff / (1000 * 3600 * 24));
+  const weekNumber = Math.floor(daysDiff / 7) + 1;
+  
+  // Ensure week is between 1 and 17 (typical college football season length)
+  return Math.max(1, Math.min(17, weekNumber));
+}
