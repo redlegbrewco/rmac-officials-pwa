@@ -1,10 +1,15 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { syncPenaltiesToSheet } from '../../lib/google-sheets';
+
+// Try absolute import with the @ alias
+import { syncPenaltiesToSheet } from '@/lib/google-sheets';
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  // Add debugging to check if function is imported
+  console.log('syncPenaltiesToSheet function:', typeof syncPenaltiesToSheet);
+  
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -23,5 +28,7 @@ export default async function handler(
   } catch (error) {
     console.error('API error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+}
   }
 }
