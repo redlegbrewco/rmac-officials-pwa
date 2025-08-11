@@ -25,9 +25,4 @@ export default async function handler(
     res.status(500).json({ error: 'Internal server error' });
   }
 }
-  } catch (error) {
-    console.error('API error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-}
 
