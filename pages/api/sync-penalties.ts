@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { syncPenaltiesToSheet } from '@/lib/google-sheets';
+import { syncPenaltiesToSheet } from '../../lib/google-sheets';
 
 export default async function handler(
   req: NextApiRequest,
