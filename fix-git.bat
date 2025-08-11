@@ -6,38 +6,38 @@ echo Current directory: %CD%
 echo.
 
 echo Checking if we're in the right directory...
-if not exist "package.json" (
-    echo ERROR: package.json not found. Make sure you're in the rmac-officials project directory.
+if not exist "components" (
+    echo ERROR: components directory not found. Make sure you're in the rmac-officials project directory.
     pause
     exit /b 1
 )
 
-echo Removing existing Git repository...
-if exist ".git" (
-    rmdir /s /q .git
-    echo Old .git directory removed.
-) else (
-    echo No existing .git directory found.
-)
+echo.
+echo Checking Git status...
+git status
 
 echo.
-echo Initializing fresh Git repository in project directory...
-git init
-
-echo.
-echo Adding project files...
+echo Adding all changes...
 git add .
 
 echo.
-echo Creating initial commit...
-git commit -m "Initial commit - RMAC Officials PWA (fixed repository)"
+echo Checking what will be committed...
+git status
 
 echo.
-echo Setting up remote and pushing...
-git branch -M main
-git remote add origin https://github.com/redlegbrewco/rmac-officials-pwa.git
+echo Creating commit with changes...
+git commit -m "Fix component structure and add Google Sheets sync"
 
 echo.
+echo Pushing to GitHub...
+git push origin main
+
+echo.
+echo Git operations complete!
+echo.
+echo If you see "Everything up-to-date", your changes are already on GitHub.
+echo If you see errors, check the output above for details.
+pause
 echo Pushing to GitHub...
 git push -u origin main
 
