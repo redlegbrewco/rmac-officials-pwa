@@ -1,15 +1,23 @@
-@import "tailwindcss";
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --background-start-rgb: 10, 10, 10;
+  --background-end-rgb: 10, 10, 10;
+  --foreground-rgb: 237, 237, 237;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@media (prefers-color-scheme: light) {
+  :root {
+    --background: #ffffff;
+    --foreground: #171717;
+    --background-start-rgb: 255, 255, 255;
+    --background-end-rgb: 255, 255, 255;
+    --foreground-rgb: 23, 23, 23;
+  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -18,10 +26,6 @@
     --foreground: #ededed;
   }
 }
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 * {
   box-sizing: border-box;
@@ -33,6 +37,8 @@ html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
 body {
@@ -48,12 +54,6 @@ body {
 a {
   color: inherit;
   text-decoration: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
 }
 
 /* Custom scrollbar styles */
