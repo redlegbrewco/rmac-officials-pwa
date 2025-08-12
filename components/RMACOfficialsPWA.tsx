@@ -1235,6 +1235,122 @@ const RMACOfficialsPWA: React.FC = () => {
 
 export default RMACOfficialsPWA;
 
+// Add this component to your RMACOfficialsPWA or create a new page
+
+interface ScoutingReportGeneratorProps {
+  currentGame: Game | null;
+  crewData: CrewData | null;
+}
+
+const ScoutingReportGenerator: React.FC<ScoutingReportGeneratorProps> = ({ currentGame, crewData }) => {
+  const [generating, setGenerating] = useState(false);
+  const [reportUrl, setReportUrl] = useState<string>('');
+  const [selectedWeek, setSelectedWeek] = useState(getCurrentWeek());
+  
+  const generateReport = async () => {
+    if (!currentGame || !crewData) {
+      alert('Please start a game and select a crew first');
+      return;
+    }
+    
+    setGenerating(true);
+    try {
+      const response = await fetch('/api/generate-scouting-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          crew: crewData.name,
+          week: selectedWeek,
+          gameInfo: {
+            homeTeam: currentGame.homeTeam,
+            awayTeam: currentGame.awayTeam,
+            date: new Date().toLocaleDateString(),
+            time: '2:00 PM',
+            location: 'TBD'
+          }
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setReportUrl(result.documentUrl);
+        alert('Scouting report generated successfully!');
+      }
+    } catch (error) {
+      console.error('Failed to generate report:', error);
+      alert('Error generating report');
+    } finally {
+      setGenerating(false);
+    }
+  };
+  
+  return (
+    <div className="bg-gray-800 m-4 p-4 rounded-xl shadow-lg">
+      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+        <FileText className="w-5 h-5 text-green-400" />
+        Scouting Report Generator
+      </h3>
+      
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            Week Number
+          </label>
+          <input
+            type="number"
+            value={selectedWeek}
+            onChange={(e) => setSelectedWeek(parseInt(e.target.value))}
+            min="1"
+            max="15"
+            className="w-full p-3 bg-gray-700 rounded-lg"
+          />
+        </div>
+        
+        <div className="text-sm text-gray-400">
+          <p>This will generate a scouting report for:</p>
+          <p className="font-bold text-white mt-1">
+            {currentGame?.homeTeam} vs {currentGame?.awayTeam}
+          </p>
+          <p className="mt-1">Crew: {crewData?.name}</p>
+        </div>
+        
+        <button
+          onClick={generateReport}
+          disabled={generating || !currentGame}
+          className="w-full p-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-lg font-bold flex items-center justify-center gap-2"
+        >
+          {generating ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              Generating Report...
+            </>
+          ) : (
+            <>
+              <FileText className="w-4 h-4" />
+              Generate Scouting Report
+            </>
+          )}
+        </button>
+        
+        {reportUrl && (
+          <div className="mt-4 p-3 bg-gray-700 rounded-lg">
+            <p className="text-sm font-bold mb-2">Report Generated!</p>
+            <a
+              href={reportUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:underline flex items-center gap-2"
+            >
+              <FileText className="w-4 h-4" />
+              Open in Google Docs
+            </a>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 // Team Color Provider Component
 interface TeamColorProviderProps {
   homeTeam: string;
