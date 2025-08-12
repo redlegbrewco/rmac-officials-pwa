@@ -6,7 +6,8 @@ import {
   Users, Mic, MicOff, BarChart3, MapPin, Clock, TrendingUp,
   AlertCircle, Radio, Settings, Volume2, Eye, Calculator,
   ClipboardList, UserCheck, MessageSquare, Target, Award,
-  Calendar, FileText, Thermometer
+  Calendar, FileText, Thermometer,
+  RefreshCw, Flag  
 } from 'lucide-react';
 
 // Web Speech API type declarations
@@ -112,6 +113,7 @@ interface Game {
   penalties: Penalty[];
   events?: GameEvent[];
   notes?: CrewNote[];
+  crew?: string;
 }
 
 interface CrewMember {
@@ -184,7 +186,94 @@ interface PreGameChecklist {
   assignedTo?: string;
   notes?: string;
 }
+interface CrewData {
+  id: string;
+  name: string;
+  officials: {
+    R: string;
+    CJ: string;
+    U: string;
+    HL: string;
+    LJ: string;
+    SJ: string;
+    FJ: string;
+    BJ: string;
+  };
+}
 
+// Define the crews based on your document
+const RMAC_CREWS: Record<string, CrewData> = {
+  'crew1': {
+    id: 'crew1',
+    name: 'Crew 1 - Gray',
+    officials: {
+      R: 'Richard Gray',
+      CJ: 'A. Carter / Staehler',
+      U: 'Sheldon McGuire',
+      HL: 'Chris Miller',
+      LJ: 'Sean Burrow',
+      SJ: 'Aaron Lackey',
+      FJ: 'Tanner Pierick',
+      BJ: 'Ryan Burrell'
+    }
+  },
+  'crew2': {
+    id: 'crew2',
+    name: 'Crew 2 - Harrison',
+    officials: {
+      R: 'Cecil Harrison',
+      CJ: 'Todd Baldwin',
+      U: 'Cary Fry',
+      HL: 'Ray Mastre / Patrick Llewellyn',
+      LJ: 'John O\'Connor',
+      SJ: 'Chris Leathers',
+      FJ: 'Shawn Hunter',
+      BJ: 'Steve McFall / Jay Anderson'
+    }
+  },
+  'crew3': {
+    id: 'crew3',
+    name: 'Crew 3 - Bloszies',
+    officials: {
+      R: 'Jeff Bloszies',
+      CJ: 'Perner / Hildebrand',
+      U: 'Bill Lyons',
+      HL: 'Bobby Albi',
+      LJ: 'Keith Clements',
+      SJ: 'Jay Anderson / Matt Kleis',
+      FJ: 'Brian Catalfamo',
+      BJ: 'Zach Blechman'
+    }
+  },
+  'crew4': {
+    id: 'crew4',
+    name: 'Crew 4 - Flinn',
+    officials: {
+      R: 'Charles Flinn',
+      CJ: 'Russell Nygaard / Chris Meyerson',
+      U: 'Bomgaars / Sykes',
+      HL: 'Chris Davison',
+      LJ: 'Dennis Barela',
+      SJ: 'Seth Beller',
+      FJ: 'Jarrod Storey',
+      BJ: 'Mike Bush'
+    }
+  },
+  'crew5': {
+    id: 'crew5',
+    name: 'Crew 5 - M. Gray',
+    officials: {
+      R: 'Michael Gray',
+      CJ: 'Jeff Rathman',
+      U: 'Richie Hahn',
+      HL: 'Mason Carter',
+      LJ: 'Matt McCarthy',
+      SJ: 'Hank Cary',
+      FJ: 'Brian Brand',
+      BJ: 'Travis Porter'
+    }
+  }
+};
 // OFFICIAL RMAC TEAM COLORS DATABASE
 interface TeamColors {
   primary: string;
@@ -350,6 +439,14 @@ const RMACOfficialsPWA: React.FC = () => {
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
 
+  // Possession tracking
+  const [possession, setPossession] = useState<'home' | 'away'>('home');
+  const [kickingTeam, setKickingTeam] = useState<'home' | 'away' | null>(null);
+
+  // Crew management
+  const [selectedCrew, setSelectedCrew] = useState<string>('');
+  const [crewData, setCrewData] = useState<CrewData | null>(null);
+
   // Refs
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -383,23 +480,9 @@ const RMACOfficialsPWA: React.FC = () => {
     } catch (error) {
       console.error('Audio error:', error);
     }
-  };
+  }
 
-  const startNewGame = (homeTeam: string, awayTeam: string) => {
-    const newGame: Game = {
-      id: Date.now().toString(),
-      homeTeam,
-      awayTeam,
-      date: new Date().toISOString(),
-      penalties: []
-    };
-    setCurrentGame(newGame);
-    setPenalties([]);
-    setGameEvents([]);
-    setCrewNotes([]);
-  };
-
-  const saveGameOffline = () => {
+  function saveGameOffline() {
     if (currentGame) {
       const gameToSave = {
         ...currentGame,
@@ -407,15 +490,15 @@ const RMACOfficialsPWA: React.FC = () => {
         events: gameEvents,
         notes: crewNotes
       };
-      
+
       const updatedGames = savedGames.filter(g => g.id !== currentGame.id);
       updatedGames.push(gameToSave);
-      
+
       setSavedGames(updatedGames);
       localStorage.setItem('rmac_saved_games', JSON.stringify(updatedGames));
       localStorage.setItem('rmac_current_game', JSON.stringify(gameToSave));
     }
-  };
+  }
 
   const syncToCloud = () => {
     alert('Sync to cloud feature coming soon');
@@ -790,6 +873,33 @@ const RMACOfficialsPWA: React.FC = () => {
   );
 
   // Game start screen
+  const startNewGame = (homeTeam: string, awayTeam: string) => {
+    const crewSelect = document.getElementById('crewSelect') as HTMLSelectElement;
+    const selectedCrewId = crewSelect?.value || '';
+    
+    if (!selectedCrewId) {
+      alert('Please select an officiating crew');
+      return;
+    }
+    
+    const newGame: Game = {
+      id: Date.now().toString(),
+      homeTeam,
+      awayTeam,
+      date: new Date().toISOString(),
+      penalties: [],
+      crew: selectedCrewId
+    };
+    
+    setCurrentGame(newGame);
+    setCrewData(RMAC_CREWS[selectedCrewId]);
+    setPenalties([]);
+    setGameEvents([]);
+    setCrewNotes([]);
+    setPossession('home'); // Home team starts with ball by default
+  };
+
+  // Show game setup screen if no current game
   if (!currentGame) {
     return (
       <div className="min-h-screen bg-gray-900 text-white p-4">
@@ -799,6 +909,19 @@ const RMACOfficialsPWA: React.FC = () => {
           <div className="bg-gray-800 p-6 rounded-lg mb-4">
             <h2 className="text-xl font-bold mb-4">Start New Game</h2>
             <div className="space-y-4">
+              {/* FIX: Move crew selection here */}
+              <select 
+                id="crewSelect"
+                className="w-full p-3 bg-gray-700 rounded text-white"
+                defaultValue=""
+                onChange={(e) => setSelectedCrew(e.target.value)}
+              >
+                <option value="">Select Officiating Crew</option>
+                {Object.entries(RMAC_CREWS).map(([id, crew]) => (
+                  <option key={id} value={id}>{crew.name}</option>
+                ))}
+              </select>
+
               <select 
                 id="homeTeam"
                 className="w-full p-3 bg-gray-700 rounded text-white"
@@ -843,19 +966,6 @@ const RMACOfficialsPWA: React.FC = () => {
               </button>
             </div>
           </div>
-
-          {savedGames.length > 0 && (
-            <div className="bg-gray-800 p-4 rounded-lg">
-              <h3 className="font-bold mb-2">Saved Games ({savedGames.length})</h3>
-              <button
-                onClick={syncToCloud}
-                className="w-full p-2 bg-blue-600 rounded mb-2 flex items-center justify-center gap-2 transition-colors hover:bg-blue-700"
-              >
-                <Upload className="w-4 h-4" />
-                Sync to Cloud
-              </button>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -1000,10 +1110,14 @@ const RMACOfficialsPWA: React.FC = () => {
           
           {/* Team Selection */}
           <TeamSelectionButtons
-            selectedTeam={team}
-            onTeamSelect={setTeam}
-            homeTeam={currentGame.homeTeam}
-            awayTeam={currentGame.awayTeam}
+          selectedTeam={team}
+          onTeamSelect={setTeam}
+          homeTeam={currentGame.homeTeam}
+          awayTeam={currentGame.awayTeam}
+          possession={possession}
+          setPossession={setPossession}
+          kickingTeam={kickingTeam}
+          setKickingTeam={setKickingTeam}
           />
 
           {/* Penalty Selection */}
@@ -1035,14 +1149,23 @@ const RMACOfficialsPWA: React.FC = () => {
               </div>
             </button>
             
+            {/* FIX: Proper structure for official selection */}
             <select
               value={callingOfficial}
               onChange={(e) => setCallingOfficial(e.target.value)}
               className="p-4 bg-gray-700 rounded-lg text-white"
             >
-              {officials.map(official => (
-                <option key={official} value={official}>{official}</option>
-              ))}
+              {crewData ? (
+                Object.entries(crewData.officials).map(([position, name]) => (
+                  <option key={position} value={position}>
+                    {position} - {name}
+                  </option>
+                ))
+              ) : (
+                officials.map(official => (
+                  <option key={official} value={official}>{official}</option>
+                ))
+              )}
             </select>
           </div>
 
@@ -1273,61 +1396,128 @@ const GameHeader: React.FC<{ game: Game; isOnline: boolean; onSave: () => void }
 };
 
 // Enhanced Team Selection Buttons
-const TeamSelectionButtons: React.FC<{ 
-  selectedTeam: string; 
+interface TeamSelectionButtonsProps {
+  selectedTeam: string;
   onTeamSelect: (team: string) => void;
   homeTeam: string;
   awayTeam: string;
-}> = ({ selectedTeam, onTeamSelect, homeTeam, awayTeam }) => {
+  possession: 'home' | 'away';
+  setPossession: (possession: 'home' | 'away') => void;
+  kickingTeam: 'home' | 'away' | null;
+  setKickingTeam: (team: 'home' | 'away' | null) => void;
+}
+
+function TeamSelectionButtons({ selectedTeam, onTeamSelect, homeTeam, awayTeam, possession, setPossession, kickingTeam, setKickingTeam }: TeamSelectionButtonsProps) {
   const homeColors = RMACTeamColors[homeTeam];
   const awayColors = RMACTeamColors[awayTeam];
-  
+
+  // Determine which team is on offense/defense based on possession
+  const offenseTeam = possession === 'home' ? homeTeam : awayTeam;
+  const defenseTeam = possession === 'home' ? awayTeam : homeTeam;
+  const offenseColors = possession === 'home' ? homeColors : awayColors;
+  const defenseColors = possession === 'home' ? awayColors : homeColors;
+
   return (
-    <div className="grid grid-cols-2 gap-3 mb-4">
-      <button
-        onClick={() => onTeamSelect('O')}
-        className={`p-4 rounded-xl font-bold transition-all duration-300 ${
-          selectedTeam === 'O' ? 'scale-105 shadow-lg' : 'hover:scale-102'
-        }`}
-        style={{
-          backgroundColor: selectedTeam === 'O' ? homeColors?.primary || '#ef4444' : '#374151',
-          color: selectedTeam === 'O' ? homeColors?.text || '#ffffff' : '#ffffff',
-          border: `2px solid ${selectedTeam === 'O' ? homeColors?.accent || '#fbbf24' : 'transparent'}`
-        }}
-      >
-        <div className="flex items-center justify-center gap-2">
-          <div 
-            className="w-3 h-3 rounded-full" 
-            style={{ backgroundColor: homeColors?.accent || '#fbbf24' }}
-          />
-          <span>OFFENSE</span>
+    <div className="space-y-3">
+      {/* Possession Indicator */}
+      <div className="flex items-center justify-between bg-gray-700 p-3 rounded-lg">
+        <span className="text-sm font-bold">Possession:</span>
+        <button
+          onClick={() => setPossession(possession === 'home' ? 'away' : 'home')}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold text-sm flex items-center gap-2"
+        >
+          <RefreshCw className="w-4 h-4" />
+          {possession === 'home' ? homeTeam : awayTeam}
+        </button>
+      </div>
+
+      {/* Team Selection Grid */}
+      <div className="grid grid-cols-3 gap-3">
+        {/* Offense Button */}
+        <button
+          onClick={() => {
+            onTeamSelect('O');
+            setKickingTeam(null);
+          } }
+          className={`p-4 rounded-xl font-bold transition-all duration-300 ${selectedTeam === 'O' ? 'scale-105 shadow-lg' : 'hover:scale-102'}`}
+          style={{
+            backgroundColor: selectedTeam === 'O' ? offenseColors?.primary || '#ef4444' : '#374151',
+            color: selectedTeam === 'O' ? offenseColors?.text || '#ffffff' : '#ffffff',
+            border: `2px solid ${selectedTeam === 'O' ? offenseColors?.accent || '#fbbf24' : 'transparent'}`
+          }}
+        >
+          <div className="flex items-center justify-center gap-2">
+            <div
+              className="w-3 h-3 rounded-full"
+              style={{ backgroundColor: offenseColors?.accent || '#fbbf24' }} />
+            <span>OFFENSE</span>
+          </div>
+          <div className="text-xs mt-1 opacity-80">{offenseTeam}</div>
+        </button>
+
+        {/* Defense Button */}
+        <button
+          onClick={() => {
+            onTeamSelect('D');
+            setKickingTeam(null);
+          } }
+          className={`p-4 rounded-xl font-bold transition-all duration-300 ${selectedTeam === 'D' ? 'scale-105 shadow-lg' : 'hover:scale-102'}`}
+          style={{
+            backgroundColor: selectedTeam === 'D' ? defenseColors?.primary || '#3b82f6' : '#374151',
+            color: selectedTeam === 'D' ? defenseColors?.text || '#ffffff' : '#ffffff',
+            border: `2px solid ${selectedTeam === 'D' ? defenseColors?.accent || '#60a5fa' : 'transparent'}`
+          }}
+        >
+          <div className="flex items-center justify-center gap-2">
+            <div
+              className="w-3 h-3 rounded-full"
+              style={{ backgroundColor: defenseColors?.accent || '#60a5fa' }} />
+            <span>DEFENSE</span>
+          </div>
+          <div className="text-xs mt-1 opacity-80">{defenseTeam}</div>
+        </button>
+
+        {/* Special Teams Button */}
+        <button
+          onClick={() => {
+            onTeamSelect('K');
+            // Open modal to select kicking team
+          } }
+          className={`p-4 rounded-xl font-bold transition-all duration-300 ${selectedTeam === 'K' ? 'scale-105 shadow-lg' : 'hover:scale-102'}`}
+          style={{
+            backgroundColor: selectedTeam === 'K' ? '#f59e0b' : '#374151',
+            color: '#ffffff',
+            border: `2px solid ${selectedTeam === 'K' ? '#fbbf24' : 'transparent'}`
+          }}
+        >
+          <div className="flex items-center justify-center gap-2">
+            <Flag className="w-4 h-4" />
+            <span>SPECIAL</span>
+          </div>
+          <div className="text-xs mt-1 opacity-80">Kick/Punt</div>
+        </button>
+      </div>
+
+      {/* Special Teams Sub-selection */}
+      {selectedTeam === 'K' && (
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          <button
+            onClick={() => setKickingTeam('home')}
+            className={`p-3 rounded-lg font-bold ${kickingTeam === 'home' ? 'bg-green-600' : 'bg-gray-700'}`}
+          >
+            {homeTeam} Kicking
+          </button>
+          <button
+            onClick={() => setKickingTeam('away')}
+            className={`p-3 rounded-lg font-bold ${kickingTeam === 'away' ? 'bg-green-600' : 'bg-gray-700'}`}
+          >
+            {awayTeam} Kicking
+          </button>
         </div>
-        <div className="text-xs mt-1 opacity-80">{homeTeam}</div>
-      </button>
-      
-      <button
-        onClick={() => onTeamSelect('D')}
-        className={`p-4 rounded-xl font-bold transition-all duration-300 ${
-          selectedTeam === 'D' ? 'scale-105 shadow-lg' : 'hover:scale-102'
-        }`}
-        style={{
-          backgroundColor: selectedTeam === 'D' ? awayColors?.primary || '#3b82f6' : '#374151',
-          color: selectedTeam === 'D' ? awayColors?.text || '#ffffff' : '#ffffff',
-          border: `2px solid ${selectedTeam === 'D' ? awayColors?.accent || '#60a5fa' : 'transparent'}`
-        }}
-      >
-        <div className="flex items-center justify-center gap-2">
-          <div 
-            className="w-3 h-3 rounded-full" 
-            style={{ backgroundColor: awayColors?.accent || '#60a5fa' }}
-          />
-          <span>DEFENSE</span>
-        </div>
-        <div className="text-xs mt-1 opacity-80">{awayTeam}</div>
-      </button>
+      )}
     </div>
   );
-};
+}
 
 // Enhanced Quick Action Button
 const QuickActionButton: React.FC<{
