@@ -7,7 +7,7 @@ import {
   AlertCircle, Radio, Settings, Volume2, Eye, Calculator,
   ClipboardList, UserCheck, MessageSquare, Target, Award,
   Calendar, FileText, Thermometer,
-  RefreshCw, Flag  
+  RefreshCw, Flag, Globe  
 } from 'lucide-react';
 
 // Web Speech API type declarations
@@ -1189,6 +1189,9 @@ const RMACOfficialsPWA: React.FC = () => {
         {/* Google Sheets Sync Section */}
         <GoogleSyncSection />
 
+        {/* ADD THIS: RMAC Network Hub */}
+        <RMACNetworkHub currentGame={currentGame} crewData={crewData} penalties={penalties} />
+
         {/* Penalties List */}
         <div className="bg-gray-800 m-4 p-4 rounded-xl shadow-lg">
           <div className="flex justify-between items-center mb-4">
@@ -1657,6 +1660,193 @@ const QuickActionButton: React.FC<{
       {icon}
       <span className="text-sm font-bold">{label}</span>
     </button>
+  );
+};
+// Add this to your RMACOfficialsPWA component or create a new page
+
+interface RMACNetworkHubProps {
+  currentGame: Game | null;
+  crewData: CrewData | null;
+  penalties: Penalty[];
+}
+
+const RMACNetworkHub: React.FC<RMACNetworkHubProps> = ({ currentGame, crewData, penalties }) => {
+  const [updating, setUpdating] = useState(false);
+  const [intelligenceUrl, setIntelligenceUrl] = useState<string>(
+    process.env.NEXT_PUBLIC_INTELLIGENCE_DOC_URL || ''
+  );
+  
+  const updateIntelligence = async () => {
+    if (!currentGame || !crewData) {
+      alert('Please have an active game to contribute intelligence');
+      return;
+    }
+    
+    setUpdating(true);
+    try {
+      const response = await fetch('/api/update-rmac-intelligence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          week: getCurrentWeek(),
+          reportingCrew: crewData.name,
+          gameData: {
+            homeTeam: currentGame.homeTeam,
+            awayTeam: currentGame.awayTeam,
+            penalties: penalties
+          }
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setIntelligenceUrl(result.documentUrl);
+        alert('Intelligence network updated! All crews have been notified.');
+      }
+    } catch (error) {
+      console.error('Failed to update intelligence:', error);
+      alert('Error updating intelligence network');
+    } finally {
+      setUpdating(false);
+    }
+  };
+  
+  return (
+    <div className="bg-gradient-to-br from-gray-800 to-gray-900 m-4 p-6 rounded-xl shadow-2xl border border-gray-700">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-xl font-bold flex items-center gap-3">
+          <div className="p-2 bg-green-600 rounded-lg">
+            <Globe className="w-6 h-6" />
+          </div>
+          RMAC Intelligence Network
+        </h3>
+        <div className="text-sm text-gray-400">
+          All Crews Connected
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* Network Status */}
+        <div className="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <Users className="w-4 h-4 text-blue-400" />
+            <span className="font-semibold">Network Status</span>
+          </div>
+          <div className="text-sm space-y-1">
+            <div className="flex justify-between">
+              <span>Connected Crews:</span>
+              <span className="text-green-400">5/5</span>
+            </div>
+            <div className="flex justify-between">
+              <span>This Week's Games:</span>
+              <span className="text-blue-400">8</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Total Intelligence Points:</span>
+              <span className="text-yellow-400">{penalties.length}</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* Quick Stats */}
+        <div className="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-4 h-4 text-green-400" />
+            <span className="font-semibold">This Week's Focus</span>
+          </div>
+          <div className="text-sm space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-red-400">🔥</span>
+              <span>Watch #74 Colorado Mesa (4 holds)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-yellow-400">⚡</span>
+              <span>Adams State averaging 8.2 penalties</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-blue-400">🌤️</span>
+              <span>Wind advisory for 3 locations</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Action Buttons */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <button
+          onClick={updateIntelligence}
+          disabled={updating || penalties.length === 0}
+          className="p-4 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:from-gray-600 disabled:to-gray-700 rounded-lg font-bold transition-all flex items-center justify-center gap-2 shadow-lg"
+        >
+          {updating ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              Updating Network...
+            </>
+          ) : (
+            <>
+              <Upload className="w-4 h-4" />
+              Contribute Intelligence
+            </>
+          )}
+        </button>
+        
+        <button
+          onClick={() => {
+            if (intelligenceUrl) {
+              window.open(intelligenceUrl, '_blank');
+            } else {
+              alert('Generate or access the intelligence report first');
+            }
+          }}
+          className="p-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-lg font-bold transition-all flex items-center justify-center gap-2 shadow-lg"
+        >
+          <Eye className="w-4 h-4" />
+          View Master Intelligence
+        </button>
+      </div>
+      
+      {/* Live Feed Preview */}
+      <div className="mt-6 p-4 bg-gray-700 bg-opacity-30 rounded-lg">
+        <div className="flex items-center gap-2 mb-3">
+          <Radio className="w-4 h-4 text-red-400 animate-pulse" />
+          <span className="font-semibold text-sm">Latest from the Network</span>
+        </div>
+        <div className="space-y-2 text-sm">
+          <div className="flex items-start gap-2">
+            <span className="text-gray-400">Crew 3:</span>
+            <span>"Colorado Mesa #74 grabbing jerseys on every sweep play"</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-gray-400">Crew 1:</span>
+            <span>"Adams State coach heated about DPI calls - watch for unsportsmanlike"</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-gray-400">Crew 5:</span>
+            <span>"Western Colorado using quick snap counts in red zone"</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Network Benefits */}
+      <div className="mt-4 text-xs text-gray-400 text-center">
+        <span className="inline-flex items-center gap-1">
+          <CheckCircle className="w-3 h-3 text-green-400" />
+          All 5 crews sharing intelligence
+        </span>
+        <span className="mx-2">•</span>
+        <span className="inline-flex items-center gap-1">
+          <CheckCircle className="w-3 h-3 text-green-400" />
+          Weekly automated reports
+        </span>
+        <span className="mx-2">•</span>
+        <span className="inline-flex items-center gap-1">
+          <CheckCircle className="w-3 h-3 text-green-400" />
+          Real-time updates
+        </span>
+      </div>
+    </div>
   );
 };
 // NumberPad Component
