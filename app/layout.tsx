@@ -1,6 +1,9 @@
-﻿import type { Metadata } from 'next';
+﻿'use client';
+
+import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import { useEffect } from 'react';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -17,6 +20,31 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  useEffect(() => {
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then((registration) => {
+          console.log('SW registered: ', registration);
+        })
+        .catch((registrationError) => {
+          console.log('SW registration failed: ', registrationError);
+        });
+    }
+
+    // Listen for service worker messages
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data.type === 'PENALTY_SYNCED') {
+          // Notify user that queued penalty was synced
+          window.dispatchEvent(new CustomEvent('penalty-synced', {
+            detail: event.data.data
+          }));
+        }
+      });
+    }
+  }, []);
+
   return (
     <html lang="en">
       <body className={inter.className}>

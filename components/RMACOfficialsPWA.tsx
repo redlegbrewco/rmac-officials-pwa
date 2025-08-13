@@ -9,6 +9,8 @@ import {
   Calendar, FileText, Thermometer,
   RefreshCw, Flag, Globe  
 } from 'lucide-react';
+import { offlineStorage, isOnline, onConnectionChange, triggerManualSync } from '@/lib/offline-storage';
+import { driveBackup } from '@/lib/google-drive-backup';
 
 // Web Speech API type declarations
 declare global {
@@ -439,6 +441,13 @@ const RMACOfficialsPWA: React.FC = () => {
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
 
+  // Phase 3: Google Drive backup state
+  const [isBackingUp, setIsBackingUp] = useState<boolean>(false);
+  const [lastBackupTime, setLastBackupTime] = useState<string | null>(null);
+  const [backupCount, setBackupCount] = useState<number>(0);
+  const [backupError, setBackupError] = useState<string | null>(null);
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState<boolean>(true);
+
   // Possession tracking
   const [possession, setPossession] = useState<'home' | 'away'>('home');
   const [kickingTeam, setKickingTeam] = useState<'home' | 'away' | null>(null);
@@ -497,6 +506,11 @@ const RMACOfficialsPWA: React.FC = () => {
       setSavedGames(updatedGames);
       localStorage.setItem('rmac_saved_games', JSON.stringify(updatedGames));
       localStorage.setItem('rmac_current_game', JSON.stringify(gameToSave));
+
+      // Also trigger Drive backup if enabled
+      if (autoBackupEnabled && crewData) {
+        performAutoBackup(penalties);
+      }
     }
   }
 
@@ -634,7 +648,8 @@ const RMACOfficialsPWA: React.FC = () => {
     }
   };
 
-  const addPenalty = (): void => {
+  // Enhanced addPenalty with auto-backup
+  const addPenalty = async (): Promise<void> => {
     if (!selectedPenalty || !playerNumber) {
       alert('Please select penalty type and enter player number');
       return;
@@ -663,8 +678,17 @@ const RMACOfficialsPWA: React.FC = () => {
       timestamp: new Date().toISOString()
     };
 
-    setPenalties([penalty, ...penalties]);
+    const newPenalties = [penalty, ...penalties];
+    setPenalties(newPenalties);
     playSound('whistle');
+    
+    // Auto-backup after penalty addition
+    if (autoBackupEnabled && currentGame && crewData) {
+      await performAutoBackup(newPenalties);
+    }
+
+    // Phase 4: Notify collaborators of new penalty
+    await notifyCollaborators('penalty', `${callingOfficial} added ${penalty.code} - ${penalty.name} #${penalty.player}`);
     
     setSelectedPenalty('');
     setPlayerNumber('');
@@ -673,64 +697,148 @@ const RMACOfficialsPWA: React.FC = () => {
     setVoiceCommand('');
   };
 
-  const handleNumberPadClick = (num: string): void => {
-    if (num === 'C') {
-      setPlayerNumber('');
-    } else if (num === 'OK') {
-      if (playerNumber) {
-        const playerNum = parseInt(playerNumber);
-        if (isNaN(playerNum) || playerNum < 0 || playerNum > 99) {
-          alert('Please enter a valid player number (0-99)');
-          return;
-        }
-        addPenalty();
-      } else {
-        alert('Please enter a player number');
-      }
-    } else {
-      const newNumber = playerNumber + num;
-      const numValue = parseInt(newNumber);
-      if (numValue <= 99) {
-        setPlayerNumber(newNumber);
-      }
-    }
-  };
+  // Phase 4: Collaboration notification system
+  const notifyCollaborators = async (type: string, message: string) => {
+    if (!currentGame || !crewData || isOffline) return;
 
-  const generateQwikRefFormat = (): string => {
-    return penalties.map(p => 
-      `${p.quarter} ${p.time} - ${p.code} ${p.name} #${p.player} ${p.team === 'O' ? 'OFF' : 'DEF'} (${p.callingOfficial})`
-    ).join('\n');
-  };
-
-  const copyQwikRefData = async (): Promise<void> => {
-    const data = generateQwikRefFormat();
     try {
-      await navigator.clipboard.writeText(data);
-      setCopiedIndex('qwikref');
-      setTimeout(() => setCopiedIndex(null), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-      const textArea = document.createElement('textarea');
-      textArea.value = data;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-999999px';
-      textArea.style.top = '-999999px';
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      try {
-        document.execCommand('copy');
-        setCopiedIndex('qwikref');
-        setTimeout(() => setCopiedIndex(null), 2000);
-      } catch (fallbackErr) {
-        console.error('Fallback copy failed:', fallbackErr);
-        alert('Copy failed. Please select and copy the text manually.');
-      }
-      document.body.removeChild(textArea);
+      await fetch('/api/notify-collaborators', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gameId: currentGame.id,
+          type,
+          message,
+          from: callingOfficial,
+          timestamp: new Date().toISOString()
+        })
+      });
+    } catch (error) {
+      console.error('Failed to notify collaborators:', error);
     }
   };
 
-  // Google Sheets sync function
+  // Phase 4: Auto-email QwikRef reports
+  const emailQwikRefReport = async () => {
+    if (!currentGame || !crewData || penalties.length === 0) {
+      alert('No penalties to email');
+      return;
+    }
+
+    setEmailingReport(true);
+    try {
+      const qwikRefData = generateQwikRefFormat();
+      const gameDate = new Date(currentGame.date).toLocaleDateString();
+      
+      const response = await fetch('/api/email-qwikref-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gameInfo: {
+            homeTeam: currentGame.homeTeam,
+            awayTeam: currentGame.awayTeam,
+            date: gameDate,
+            crew: crewData.name
+          },
+          qwikRefData,
+          penalties,
+          crewEmails: Object.values(crewData.officials).map(name => 
+            // Convert names to emails (you'd have actual email addresses)
+            `${name.toLowerCase().replace(/\s+/g, '.')}@rmac.org`
+          )
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setLastEmailTime(new Date().toISOString());
+        localStorage.setItem('last_email_time', new Date().toISOString());
+        alert(`QwikRef report emailed to ${result.recipientCount} crew members!`);
+      } else {
+        alert('Failed to send email report');
+      }
+    } catch (error) {
+      console.error('Email error:', error);
+      alert('Error sending email report');
+    } finally {
+      setEmailingReport(false);
+    }
+  };
+
+  // Phase 4: Enhanced connection monitoring with collaboration
+  useEffect(() => {
+    const cleanup = onConnectionChange((online) => {
+      setIsOffline(!online);
+      setIsOnline(online);
+      
+      if (online) {
+        triggerManualSync();
+        setShowOfflineNotice(false);
+        // Re-establish collaboration connection
+        if (currentGame && crewData) {
+          connectToCollaboration();
+        }
+      } else {
+        setShowOfflineNotice(true);
+        setTimeout(() => setShowOfflineNotice(false), 3000);
+        setActiveCollaborators([]);
+      }
+    });
+
+    const updateQueueCount = async () => {
+      const count = await offlineStorage.getQueueCount();
+      setQueuedPenalties(count);
+    };
+
+    updateQueueCount();
+    const interval = setInterval(updateQueueCount, 5000);
+
+    const handlePenaltySynced = () => {
+      updateQueueCount();
+    };
+
+    window.addEventListener('penalty-synced', handlePenaltySynced);
+
+    // Initialize collaboration when game starts
+    if (currentGame && crewData && !isOffline) {
+      connectToCollaboration();
+    }
+
+    return () => {
+      cleanup();
+      clearInterval(interval);
+      window.removeEventListener('penalty-synced', handlePenaltySynced);
+    };
+  }, [currentGame, crewData]);
+
+  // Phase 4: Real-time collaboration connection
+  const connectToCollaboration = async () => {
+    if (!currentGame || !crewData || isOffline) return;
+
+    try {
+      const response = await fetch('/api/join-collaboration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gameId: currentGame.id,
+          crewId: crewData.id,
+          officialPosition: callingOfficial,
+          timestamp: new Date().toISOString()
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setActiveCollaborators(result.activeOfficials || []);
+        setRecentUpdates(result.recentUpdates || []);
+      }
+    } catch (error) {
+      console.error('Failed to connect to collaboration:', error);
+    }
+  };
+
+  // Enhanced Google Sheets sync with real-time collaboration
   const syncToGoogleSheets = async () => {
     if (!currentGame || penalties.length === 0) {
       alert('No penalties to sync');
@@ -741,7 +849,7 @@ const RMACOfficialsPWA: React.FC = () => {
       setIsSyncing(true);
       setSyncStatus('syncing');
       
-      const currentCrew = localStorage.getItem('crew_name') || 'Crew 1';
+      const currentCrew = crewData?.name || localStorage.getItem('crew_name') || 'Crew 1';
       
       const gameInfo = {
         date: new Date().toISOString().split('T')[0],
@@ -749,13 +857,28 @@ const RMACOfficialsPWA: React.FC = () => {
         homeTeam: currentGame.homeTeam,
         awayTeam: currentGame.awayTeam,
         crew: currentCrew,
-        location: 'TBD'
+        location: 'TBD',
+        // Phase 4: Add collaboration metadata
+        syncedBy: callingOfficial,
+        collaborators: activeCollaborators,
+        lastUpdate: new Date().toISOString()
       };
+
+      const requestData = { penalties, gameInfo };
+
+      // If offline, queue the data
+      if (isOffline) {
+        await offlineStorage.addToQueue(requestData);
+        setSyncStatus('success');
+        setLastSyncTime(new Date().toISOString());
+        alert('Penalties queued for sync when online!');
+        return;
+      }
 
       const response = await fetch('/api/sync-penalties', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ penalties, gameInfo })
+        body: JSON.stringify(requestData)
       });
 
       const result = await response.json();
@@ -764,81 +887,26 @@ const RMACOfficialsPWA: React.FC = () => {
         setSyncStatus('success');
         setLastSyncTime(new Date().toISOString());
         localStorage.setItem('last_sync_time', new Date().toISOString());
+        
+        // Phase 4: Notify collaborators of sync
+        await notifyCollaborators('sync', `${callingOfficial} synced ${penalties.length} penalties`);
+        
         alert(`Successfully synced ${result.rowsAdded} penalties to Google Sheets!`);
       } else {
+        await offlineStorage.addToQueue(requestData);
         setSyncStatus('error');
-        alert('Sync failed. Please try again.');
+        alert('Sync failed. Penalty queued for retry.');
       }
     } catch (error) {
       console.error('Sync error:', error);
-      setSyncStatus('error');
-      alert('Error syncing to Google Sheets. Check your connection and try again.');
-    } finally {
-      setIsSyncing(false);
-      setTimeout(() => setSyncStatus('idle'), 3000);
-    }
-  };
-
-  // Google Sync Section Component
-  const GoogleSyncSection = () => (
-    <div className="bg-gray-800 m-4 p-4 rounded-xl shadow-lg border border-gray-700">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-lg flex items-center gap-2">
-          <Cloud className="w-5 h-5 text-blue-400" />
-          Google Sheets Sync
-        </h3>
-        {lastSyncTime && (
-          <div className="text-xs text-gray-400">
-            <span>Last sync: </span>
-            <span className="text-gray-300">
-              {new Date(lastSyncTime).toLocaleTimeString()}
-            </span>
-          </div>
-        )}
-      </div>
-      
-      {syncStatus !== 'idle' && (
-        <div className={`mb-3 p-2 rounded-lg text-sm flex items-center gap-2 ${
-          syncStatus === 'syncing' ? 'bg-blue-900 text-blue-200' :
-          syncStatus === 'success' ? 'bg-green-900 text-green-200' :
-          'bg-red-900 text-red-200'
-        }`}>
-          {syncStatus === 'syncing' && (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
-              Syncing to Google Sheets...
-            </>
-          )}
-          {syncStatus === 'success' && (
-            <>
-              <CheckCircle className="w-4 h-4" />
-              Successfully synced!
-            </>
-          )}
-          {syncStatus === 'error' && (
-            <>
-              <AlertCircle className="w-4 h-4" />
-              Sync failed - please try again
-            </>
-          )}
-        </div>
-      )}
-      
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          onClick={syncToGoogleSheets}
-          disabled={isSyncing || penalties.length === 0}
-          className="p-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-bold transition-all flex items-center justify-center gap-2"
-        >
-          {isSyncing ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              Syncing...
-            </>
-          ) : (
+      const requestData = { penalties, gameInfo: {
+        date: new Date().toISOString().split('T')[0],
+        week: getCurrentWeek(),
+        homeTeam: currentGame.homeTeam,
+        awayTeam: currentGame.aw
             <>
               <Upload className="w-4 h-4" />
-              Sync to Sheets
+              {isOffline ? 'Queue for Sync' : 'Sync to Sheets'}
             </>
           )}
         </button>
@@ -871,6 +939,142 @@ const RMACOfficialsPWA: React.FC = () => {
       )}
     </div>
   );
+
+  // Phase 3: Google Drive Backup Section
+  const GoogleDriveBackupSection = () => (
+    <div className="bg-gray-800 m-4 p-4 rounded-xl shadow-lg border border-gray-700">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-bold text-lg flex items-center gap-2">
+          <Save className="w-5 h-5 text-green-400" />
+          Google Drive Backup
+          {isBackingUp && (
+            <span className="text-xs bg-blue-600 px-2 py-1 rounded animate-pulse">BACKING UP</span>
+          )}
+        </h3>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">Auto-backup:</span>
+          <button
+            onClick={() => {
+              const newValue = !autoBackupEnabled;
+              setAutoBackupEnabled(newValue);
+              localStorage.setItem('auto_backup_enabled', newValue.toString());
+            }}
+            className={`px-2 py-1 rounded text-xs font-bold ${
+              autoBackupEnabled ? 'bg-green-600' : 'bg-gray-600'
+            }`}
+          >
+            {autoBackupEnabled ? 'ON' : 'OFF'}
+          </button>
+        </div>
+      </div>
+
+      {/* Backup Status */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+        <div className="bg-gray-700 bg-opacity-50 p-3 rounded-lg">
+          <div className="text-xs text-gray-400">Total Backups</div>
+          <div className="text-xl font-bold text-white">{backupCount}</div>
+        </div>
+        <div className="bg-gray-700 bg-opacity-50 p-3 rounded-lg">
+          <div className="text-xs text-gray-400">Last Backup</div>
+          <div className="text-sm font-bold text-white">
+            {lastBackupTime ? new Date(lastBackupTime).toLocaleTimeString() : 'Never'}
+          </div>
+        </div>
+        <div className="bg-gray-700 bg-opacity-50 p-3 rounded-lg">
+          <div className="text-xs text-gray-400">Status</div>
+          <div className={`text-sm font-bold ${
+            isBackingUp ? 'text-blue-400' : 
+            backupError ? 'text-red-400' : 
+            'text-green-400'
+          }`}>
+            {isBackingUp ? 'Backing up...' : 
+             backupError ? 'Error' : 
+             'Ready'}
+          </div>
+        </div>
+      </div>
+
+      {/* Error Display */}
+      {backupError && (
+        <div className="mb-3 p-2 bg-red-900 text-red-200 rounded-lg text-sm flex items-center gap-2">
+          <AlertCircle className="w-4 h-4" />
+          <span>Backup Error: {backupError}</span>
+          <button
+            onClick={() => setBackupError(null)}
+            className="ml-auto text-xs underline hover:no-underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Backup Actions */}
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          onClick={triggerManualBackup}
+          disabled={isBackingUp || !currentGame}
+          className="p-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-bold transition-all flex items-center justify-center gap-2"
+        >
+          {isBackingUp ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              Backing up...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4" />
+              Manual Backup
+            </>
+          )}
+        </button>
+        
+        <button
+          onClick={() => window.open('https://drive.google.com/drive/folders/', '_blank')}
+          className="p-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold transition-all flex items-center justify-center gap-2"
+        >
+          <Eye className="w-4 h-4" />
+          View Drive
+        </button>
+      </div>
+
+      {/* Backup Info */}
+      {currentGame && (
+        <div className="mt-3 text-center">
+          <div className="text-sm text-gray-400">
+            <span>Crew folder: </span>
+            <span className="text-white font-mono">RMAC_{crewData?.name.replace(/\s+/g, '_')}</span>
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            Auto-backup after each penalty {autoBackupEnabled ? '✓' : '✗'}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // Re-run sync and backup status checks every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (currentGame) {
+        // Update sync status
+        const lastSync = localStorage.getItem('last_sync_time');
+        setLastSyncTime(lastSync);
+        
+        // Update backup status
+        const status = driveBackup.getBackupStatus();
+        setLastBackupTime(status.lastBackupTime);
+        setBackupCount(status.backupCount);
+      }
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [currentGame]);
+
+  // Crew management
+  const handleCrewSelect = (crewId: string) => {
+    setSelectedCrew(crewId);
+    setCrewData(RMAC_CREWS[crewId]);
+  };
 
   // Game start screen
   const startNewGame = (homeTeam: string, awayTeam: string) => {
@@ -974,7 +1178,9 @@ const RMACOfficialsPWA: React.FC = () => {
   // Main game interface
   return (
     <TeamColorProvider homeTeam={currentGame.homeTeam} awayTeam={currentGame.awayTeam}>
-      <div className="min-h-screen bg-gray-900 text-white pb-20">
+      <div className={`min-h-screen bg-gray-900 text-white pb-20 ${
+        isBrightSunMode ? 'bg-gray-800' : ''
+      }`}>
         {showNumberPad && (
           <NumberPad 
             playerNumber={playerNumber}
@@ -982,59 +1188,47 @@ const RMACOfficialsPWA: React.FC = () => {
             onClose={() => setShowNumberPad(false)}
           />
         )}
-        {showAnalytics && <AnalyticsDashboard />}
-        {showFieldView && <FieldView />}
-        {showEnforcementCalc && <EnforcementCalculator />}
-        {showCrewNotes && <CrewNotesPanel />}
         
-        {/* Enhanced Header with Team Colors */}
+        {/* ...existing modals... */}
+        
+        {/* Enhanced Header */}
         <GameHeader 
           game={currentGame} 
-          isOnline={isOnline} 
+          isOnline={!isOffline} 
           onSave={saveGameOffline} 
         />
 
-        {/* Undo notification */}
-        {lastDeletedPenalty && (
-          <div className="bg-gradient-to-r from-yellow-600 to-orange-600 p-3 flex justify-between items-center shadow-lg">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              <span className="font-semibold">Penalty deleted</span>
-            </div>
-            <button
-              onClick={undoDelete}
-              className="flex items-center gap-2 bg-yellow-700 hover:bg-yellow-800 px-4 py-2 rounded-lg transition-all font-bold"
-            >
-              <Undo2 className="w-4 h-4" />
-              Undo
-            </button>
-          </div>
-        )}
+        {/* Weather Control Panel */}
+        <WeatherControlPanel />
 
-        {/* Quick Action Bar */}
-        <div className="bg-gray-800 mx-4 mt-4 p-3 rounded-xl flex gap-2 overflow-x-auto shadow-lg">
+        {/* Quick Entry Templates */}
+        <QuickEntryTemplates />
+
+        {/* ...existing undo notification... */}
+
+        {/* Enhanced Quick Action Bar */}
+        <div className={`bg-gray-800 mx-4 mt-4 p-3 rounded-xl flex gap-2 overflow-x-auto shadow-lg ${
+          isBrightSunMode ? 'border-2 border-gray-600' : ''
+        }`}>
           <QuickActionButton
-            icon={isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            icon={isListening ? <MicOff className={`${isColdWeatherMode ? 'w-5 h-5' : 'w-4 h-4'}`} /> : <Mic className={`${isColdWeatherMode ? 'w-5 h-5' : 'w-4 h-4'}`} />}
             label="Voice"
             onClick={toggleVoiceRecognition}
             active={isListening}
             color={isListening ? '#ef4444' : '#10b981'}
           />
-          
           <QuickActionButton
             icon={<BarChart3 className="w-4 h-4" />}
             label="Analytics"
             onClick={() => setShowAnalytics(true)}
             color="#8b5cf6"
           />
-          
           <QuickActionButton
             icon={<Calculator className="w-4 h-4" />}
             label="Enforce"
             onClick={() => setShowEnforcementCalc(true)}
             color="#06b6d4"
           />
-          
           <QuickActionButton
             icon={<MessageSquare className="w-4 h-4" />}
             label="Notes"
@@ -1043,10 +1237,14 @@ const RMACOfficialsPWA: React.FC = () => {
           />
         </div>
 
-        {/* Game Status */}
-        <div className="bg-gray-800 m-4 p-4 rounded-xl shadow-lg">
-          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5" />
+        {/* Enhanced Game Status */}
+        <div className={`bg-gray-800 m-4 p-4 rounded-xl shadow-lg ${
+          isBrightSunMode ? 'border-2 border-gray-600' : ''
+        }`}>
+          <h3 className={`font-bold mb-4 flex items-center gap-2 ${
+            isColdWeatherMode ? 'text-xl' : 'text-lg'
+          }`}>
+            <Clock className={`${isColdWeatherMode ? 'w-6 h-6' : 'w-5 h-5'}`} />
             Game Status
           </h3>
           
@@ -1054,7 +1252,9 @@ const RMACOfficialsPWA: React.FC = () => {
             <select
               value={quarter}
               onChange={(e) => setQuarter(e.target.value)}
-              className="p-3 bg-gray-700 rounded-lg text-white font-semibold"
+              className={`bg-gray-700 rounded-lg text-white font-semibold ${
+                isColdWeatherMode ? 'p-4 text-lg' : 'p-3'
+              } ${isBrightSunMode ? 'border-2 border-gray-500' : ''}`}
             >
               <option value="1st">1st Quarter</option>
               <option value="2nd">2nd Quarter</option>
@@ -1068,7 +1268,9 @@ const RMACOfficialsPWA: React.FC = () => {
               value={gameTime}
               onChange={(e) => setGameTime(e.target.value)}
               placeholder="Time (0:00)"
-              className="p-3 bg-gray-700 rounded-lg text-white placeholder-gray-400 font-mono text-center"
+              className={`bg-gray-700 rounded-lg text-white placeholder-gray-400 font-mono text-center ${
+                isColdWeatherMode ? 'p-4 text-lg' : 'p-3'
+              } ${isBrightSunMode ? 'border-2 border-gray-500' : ''}`}
             />
           </div>
           
@@ -1080,7 +1282,9 @@ const RMACOfficialsPWA: React.FC = () => {
               placeholder="Down"
               min="1"
               max="4"
-              className="p-3 bg-gray-700 rounded-lg text-white placeholder-gray-400 text-center"
+              className={`bg-gray-700 rounded-lg text-white placeholder-gray-400 text-center ${
+                isColdWeatherMode ? 'p-4 text-lg' : 'p-3'
+              } ${isBrightSunMode ? 'border-2 border-gray-500' : ''}`}
             />
             
             <input
@@ -1088,23 +1292,31 @@ const RMACOfficialsPWA: React.FC = () => {
               value={distance}
               onChange={(e) => setDistance(e.target.value)}
               placeholder="Distance"
-              className="p-3 bg-gray-700 rounded-lg text-white placeholder-gray-400 text-center"
+              className={`bg-gray-700 rounded-lg text-white placeholder-gray-400 text-center ${
+                isColdWeatherMode ? 'p-4 text-lg' : 'p-3'
+              } ${isBrightSunMode ? 'border-2 border-gray-500' : ''}`}
             />
             
             <button
               onClick={() => setShowFieldView(true)}
-              className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center gap-2 transition-all font-bold"
+              className={`bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center gap-2 transition-all font-bold ${
+                isColdWeatherMode ? 'p-4' : 'p-3'
+              } ${isBrightSunMode ? 'border-2 border-gray-500' : ''}`}
             >
-              <MapPin className="w-4 h-4" />
+              <MapPin className={`${isColdWeatherMode ? 'w-5 h-5' : 'w-4 h-4'}`} />
               {fieldPosition}
             </button>
           </div>
         </div>
 
-        {/* Main Penalty Entry */}
-        <div className="bg-gray-800 m-4 p-4 rounded-xl shadow-lg">
-          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <Target className="w-5 h-5" />
+        {/* Enhanced Main Penalty Entry */}
+        <div className={`bg-gray-800 m-4 p-4 rounded-xl shadow-lg ${
+          isBrightSunMode ? 'border-2 border-gray-600' : ''
+        }`}>
+          <h3 className={`font-bold mb-4 flex items-center gap-2 ${
+            isColdWeatherMode ? 'text-xl' : 'text-lg'
+          }`}>
+            <Target className={`${isColdWeatherMode ? 'w-6 h-6' : 'w-5 h-5'}`} />
             Add Penalty
           </h3>
           
@@ -1120,11 +1332,13 @@ const RMACOfficialsPWA: React.FC = () => {
           setKickingTeam={setKickingTeam}
           />
 
-          {/* Penalty Selection */}
+          {/* Enhanced Penalty Selection */}
           <select
             value={selectedPenalty}
             onChange={(e) => setSelectedPenalty(e.target.value)}
-            className="w-full p-4 bg-gray-700 rounded-lg mb-4 text-white"
+            className={`w-full bg-gray-700 rounded-lg mb-4 text-white ${
+              isColdWeatherMode ? 'p-5 text-lg' : 'p-4'
+            } ${isBrightSunMode ? 'border-2 border-gray-500' : ''}`}
           >
             <option value="">Select Penalty Code</option>
             {Object.entries(penaltyTypes)
@@ -1137,23 +1351,26 @@ const RMACOfficialsPWA: React.FC = () => {
             }
           </select>
 
-          {/* Player Number and Official */}
+          {/* Enhanced Player Number and Official */}
           <div className="grid grid-cols-2 gap-3 mb-4">
             <button
               onClick={() => setShowNumberPad(true)}
-              className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold transition-all"
+              className={`bg-gray-700 hover:bg-gray-600 rounded-lg font-bold transition-all ${
+                isColdWeatherMode ? 'p-5 text-lg' : 'p-4'
+              } ${isBrightSunMode ? 'border-2 border-gray-500' : ''}`}
             >
               <div className="flex items-center justify-center gap-2">
-                <UserCheck className="w-4 h-4" />
+                <UserCheck className={`${isColdWeatherMode ? 'w-5 h-5' : 'w-4 h-4'}`} />
                 <span>Player #{playerNumber || '00'}</span>
               </div>
             </button>
             
-            {/* FIX: Proper structure for official selection */}
             <select
               value={callingOfficial}
               onChange={(e) => setCallingOfficial(e.target.value)}
-              className="p-4 bg-gray-700 rounded-lg text-white"
+              className={`bg-gray-700 rounded-lg text-white ${
+                isColdWeatherMode ? 'p-5 text-lg' : 'p-4'
+              } ${isBrightSunMode ? 'border-2 border-gray-500' : ''}`}
             >
               {crewData ? (
                 Object.entries(crewData.officials).map(([position, name]) => (
@@ -1165,7 +1382,7 @@ const RMACOfficialsPWA: React.FC = () => {
                 officials.map(official => (
                   <option key={official} value={official}>{official}</option>
                 ))
-              )}
+              }
             </select>
           </div>
 
@@ -1174,13 +1391,17 @@ const RMACOfficialsPWA: React.FC = () => {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Description (optional)"
-            className="w-full p-4 bg-gray-700 rounded-lg mb-4 text-white placeholder-gray-400"
+            className={`w-full bg-gray-700 rounded-lg mb-4 text-white placeholder-gray-400 ${
+              isColdWeatherMode ? 'p-5 text-lg' : 'p-4'
+            } ${isBrightSunMode ? 'border-2 border-gray-500' : ''}`}
           />
 
           <button
             onClick={addPenalty}
             disabled={!selectedPenalty || !playerNumber}
-            className="w-full p-4 bg-green-600 disabled:bg-gray-600 rounded-lg font-bold text-white transition-all hover:bg-green-700 disabled:cursor-not-allowed shadow-lg"
+            className={`w-full bg-green-600 disabled:bg-gray-600 rounded-lg font-bold text-white transition-all hover:bg-green-700 disabled:cursor-not-allowed shadow-lg ${
+              isColdWeatherMode ? 'p-5 text-lg' : 'p-4'
+            } ${isBrightSunMode ? 'border-2 border-white' : ''}`}
           >
             {selectedPenalty && playerNumber ? 'Add Penalty' : 'Select Penalty & Player'}
           </button>
@@ -1189,7 +1410,10 @@ const RMACOfficialsPWA: React.FC = () => {
         {/* Google Sheets Sync Section */}
         <GoogleSyncSection />
 
-        {/* ADD THIS: RMAC Network Hub */}
+        {/* Phase 3: Google Drive Backup Section */}
+        <GoogleDriveBackupSection />
+
+        {/* RMAC Network Hub */}
         <RMACNetworkHub currentGame={currentGame} crewData={crewData} penalties={penalties} />
 
         {/* Penalties List */}
@@ -1473,10 +1697,16 @@ const GameHeader: React.FC<{ game: Game; isOnline: boolean; onSave: () => void }
   onSave 
 }) => {
   return (
-    <div className="p-4 shadow-lg sticky top-0 z-10 bg-gray-800">
+    <div className={`p-4 shadow-lg sticky top-0 z-10 bg-gray-800 ${
+      isBrightSunMode ? 'shadow-xl border-b-4 border-white' : ''
+    }`}>
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-bold text-white mb-2">RMAC Officials Assistant</h1>
+          <h1 className={`text-xl font-bold text-white mb-2 ${
+            isColdWeatherMode ? 'text-2xl' : ''
+          } ${isBrightSunMode ? 'text-shadow-lg' : ''}`}>
+            RMAC Officials Assistant
+          </h1>
           <div className="flex items-center gap-3">
             <TeamIndicator team={game.homeTeam} isHome={true} />
             <span className="text-white font-bold">VS</span>
@@ -1499,17 +1729,30 @@ const GameHeader: React.FC<{ game: Game; isOnline: boolean; onSave: () => void }
                   <span className="text-xs text-red-400">Offline</span>
                 </>
               )}
+              {queuedPenalties > 0 && (
+                <span className="text-xs bg-orange-600 px-1 rounded">
+                  {queuedPenalties} queued
+                </span>
+              )}
             </div>
           </div>
           
           <button
             onClick={onSave}
-            className="p-3 bg-blue-600 hover:bg-blue-700 rounded-lg transition-all shadow-lg"
+            className={`p-3 bg-blue-600 hover:bg-blue-700 rounded-lg transition-all shadow-lg ${
+              isColdWeatherMode ? 'p-4' : ''
+            } ${isBrightSunMode ? 'border-2 border-white shadow-xl' : ''}`}
           >
-            <Save className="w-5 h-5 text-white" />
+            <Save className={`text-white ${isColdWeatherMode ? 'w-6 h-6' : 'w-5 h-5'}`} />
           </button>
         </div>
       </div>
+
+      {showOfflineNotice && (
+        <div className="mt-2 p-2 bg-orange-600 text-white text-sm rounded-lg">
+          📡 You're now offline. Penalties will be queued and synced when connection returns.
+        </div>
+      )}
     </div>
   );
 };
@@ -1652,6 +1895,7 @@ const QuickActionButton: React.FC<{
       className={`p-3 rounded-lg flex items-center gap-2 whitespace-nowrap transition-all duration-200 hover:scale-105 ${
         active ? 'shadow-lg' : ''
       }`}
+
       style={{
         backgroundColor: active ? color : '#374151',
         color: '#ffffff'
@@ -1855,42 +2099,59 @@ const NumberPad: React.FC<{
   onNumberClick: (num: string) => void;
   onClose: () => void;
 }> = ({ playerNumber, onNumberClick, onClose }) => {
+  const buttonSize = isColdWeatherMode ? 'p-6 text-2xl' : 'p-4 text-xl';
+  const gridGap = isColdWeatherMode ? 'gap-4' : 'gap-3';
+  
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-800 p-6 rounded-xl shadow-xl max-w-sm w-full mx-4">
-        <h3 className="text-lg font-bold mb-4 text-center">Enter Player Number</h3>
+      <div className={`bg-gray-800 p-6 rounded-xl shadow-xl max-w-sm w-full mx-4 ${
+        isBrightSunMode ? 'border-4 border-white' : ''
+      }`}>
+        <h3 className={`font-bold mb-4 text-center ${
+          isColdWeatherMode ? 'text-xl' : 'text-lg'
+        }`}>Enter Player Number</h3>
         
         <div className="text-center mb-4">
-          <div className="text-3xl font-bold text-white bg-gray-700 p-4 rounded-lg">
+          <div className={`font-bold text-white bg-gray-700 rounded-lg ${
+            isColdWeatherMode ? 'text-4xl p-6' : 'text-3xl p-4'
+          } ${isBrightSunMode ? 'border-2 border-white' : ''}`}>
             #{playerNumber || '00'}
           </div>
         </div>
         
-        <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className={`grid grid-cols-3 mb-4 ${gridGap}`}>
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
             <button
               key={num}
               onClick={() => onNumberClick(num.toString())}
-              className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg text-xl font-bold transition-all"
+              className={`${buttonSize} bg-gray-700 hover:bg-gray-600 rounded-lg font-bold transition-all ${
+                isBrightSunMode ? 'border-2 border-gray-400' : ''
+              }`}
             >
               {num}
             </button>
           ))}
           <button
             onClick={() => onNumberClick('C')}
-            className="p-4 bg-red-600 hover:bg-red-700 rounded-lg text-xl font-bold transition-all"
+            className={`${buttonSize} bg-red-600 hover:bg-red-700 rounded-lg font-bold transition-all ${
+              isBrightSunMode ? 'border-2 border-white' : ''
+            }`}
           >
             C
           </button>
           <button
             onClick={() => onNumberClick('0')}
-            className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg text-xl font-bold transition-all"
+            className={`${buttonSize} bg-gray-700 hover:bg-gray-600 rounded-lg font-bold transition-all ${
+              isBrightSunMode ? 'border-2 border-gray-400' : ''
+            }`}
           >
             0
           </button>
           <button
             onClick={() => onNumberClick('OK')}
-            className="p-4 bg-green-600 hover:bg-green-700 rounded-lg text-xl font-bold transition-all"
+            className={`${buttonSize} bg-green-600 hover:bg-green-700 rounded-lg font-bold transition-all ${
+              isBrightSunMode ? 'border-2 border-white' : ''
+            }`}
           >
             OK
           </button>
@@ -1898,7 +2159,9 @@ const NumberPad: React.FC<{
         
         <button
           onClick={onClose}
-          className="w-full p-3 bg-gray-600 hover:bg-gray-700 rounded-lg font-bold transition-all"
+          className={`w-full bg-gray-600 hover:bg-gray-700 rounded-lg font-bold transition-all ${
+            isColdWeatherMode ? 'p-4 text-lg' : 'p-3'
+          } ${isBrightSunMode ? 'border-2 border-gray-400' : ''}`}
         >
           Cancel
         </button>
