@@ -3,60 +3,32 @@
 interface BackupStatus {
   lastBackupTime: string | null;
   backupCount: number;
-  isAuthenticated: boolean;
+  isBackingUp: boolean;
 }
 
 interface BackupResult {
   success: boolean;
-  error?: string;
   fileId?: string;
-  fileName?: string;
+  error?: string;
 }
 
-class GoogleDriveBackupService {
-  private readonly BACKUP_PREFIX = 'rmac_backup_';
-  private readonly STATUS_KEY = 'rmac_backup_status';
-  private isBackingUp = false;
-
-  private getStatus(): BackupStatus {
-    try {
-      const saved = localStorage.getItem(this.STATUS_KEY);
-      return saved ? JSON.parse(saved) : {
-        lastBackupTime: null,
-        backupCount: 0,
-        isAuthenticated: false
-      };
-    } catch (error) {
-      return {
-        lastBackupTime: null,
-        backupCount: 0,
-        isAuthenticated: false
-      };
-    }
-  }
-
-  private saveStatus(status: BackupStatus): void {
-    localStorage.setItem(this.STATUS_KEY, JSON.stringify(status));
-  }
-
-  private updateBackupStatus(): void {
-    const status = this.getStatus();
-    status.lastBackupTime = new Date().toISOString();
-    status.backupCount += 1;
-    status.isAuthenticated = true;
-    this.saveStatus(status);
-  }
+export class GoogleDriveBackupService {
+  private backupStatus: BackupStatus = {
+    lastBackupTime: null,
+    backupCount: 0,
+    isBackingUp: false
+  };
 
   async backupGameData(gameData: any, crewName: string): Promise<BackupResult> {
     // Prevent concurrent backups
-    if (this.isBackingUp) {
+    if (this.backupStatus.isBackingUp) {
       return {
         success: false,
         error: 'Backup already in progress'
       };
     }
 
-    this.isBackingUp = true;
+    this.backupStatus.isBackingUp = true;
 
     try {
       // Format filename
@@ -92,8 +64,9 @@ class GoogleDriveBackupService {
 
       const result = await response.json();
 
-      // Update local status
-      this.updateBackupStatus();
+      this.backupStatus.lastBackupTime = new Date().toISOString();
+      this.backupStatus.backupCount++;
+      this.backupStatus.isBackingUp = false;
 
       return {
         success: true,
@@ -103,9 +76,36 @@ class GoogleDriveBackupService {
 
     } catch (error) {
       console.error('Backup error:', error);
+      this.backupStatus.isBackingUp = false;
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown backup error'
+      };
+    }
+  }
+
+  getBackupStatus(): BackupStatus {
+    return { ...this.backupStatus };
+  }
+
+  async downloadBackup(fileId: string): Promise<any> {
+    try {
+      // Simulate download from Google Drive
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      return {
+        success: true,
+        data: {} // Downloaded game data would go here
+      };
+    } catch (error) {
+      console.error('Download backup failed:', error);
+      throw error;
+    }
+  }
+}
+
+// Create singleton instance
+export const driveBackup = new GoogleDriveBackupService();
       };
     } finally {
       this.isBackingUp = false;
