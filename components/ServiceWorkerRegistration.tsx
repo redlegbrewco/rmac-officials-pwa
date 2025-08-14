@@ -7,7 +7,7 @@ export default function ServiceWorkerRegistration() {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
       window.addEventListener('load', async () => {
         try {
-          const registration = await navigator.serviceWorker.register('/sw.js', {
+          const registration = await navigator.serviceWorker.register('/service-worker.js', {
             scope: '/'
           });
           

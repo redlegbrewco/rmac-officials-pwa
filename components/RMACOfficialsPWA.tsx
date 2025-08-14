@@ -6,12 +6,13 @@ import {
   Users, Mic, MicOff, BarChart3, MapPin, Clock, TrendingUp,
   AlertCircle, Radio, Settings, Volume2, Eye, Calculator,
   ClipboardList, UserCheck, MessageSquare, Target, Award,
-  Calendar, FileText, Thermometer,
+  Calendar, FileText, Thermometer, AlertTriangle,
   RefreshCw, Flag, Globe, Play, Pause, RotateCcw, Plus, Minus,
   Mail, Send, TrendingDown, BarChart2, PieChart, Calendar as CalendarIcon,
   Smartphone, Headphones, Zap, Shield, Network, Database,
   PhoneCall, MessageCircle, Bell, Download, Share2, 
-  HelpCircle, Book, Video, ExternalLink, Lightbulb
+  HelpCircle, Book, Video, ExternalLink, Lightbulb,
+  Maximize, Brain
 } from 'lucide-react';
 import { offlineStorage, isOnline, onConnectionChange, triggerManualSync } from '@/lib/offline-storage';
 import { driveBackup } from '@/lib/google-drive-backup';
@@ -594,6 +595,16 @@ const RMACOfficialsPWA: React.FC = () => {
   const [selectedCrew, setSelectedCrew] = useState<string>('');
   const [crewData, setCrewData] = useState<CrewData | null>(null);
   const [possession, setPossession] = useState<'home' | 'away'>('home');
+  
+  // Game Setup State
+  const [gameStarted, setGameStarted] = useState<boolean>(false);
+  const [selectedHomeTeam, setSelectedHomeTeam] = useState<string>('');
+  const [selectedAwayTeam, setSelectedAwayTeam] = useState<string>('');
+  const [customHomeTeam, setCustomHomeTeam] = useState<string>('');
+  const [customAwayTeam, setCustomAwayTeam] = useState<string>('');
+  const [showCustomHomeInput, setShowCustomHomeInput] = useState<boolean>(false);
+  const [showCustomAwayInput, setShowCustomAwayInput] = useState<boolean>(false);
+  const [customTeamHistory, setCustomTeamHistory] = useState<string[]>([]);
 
   // Other State
   const [savedGames, setSavedGames] = useState<Game[]>([]);
@@ -601,6 +612,29 @@ const RMACOfficialsPWA: React.FC = () => {
   const [crewNotes, setCrewNotes] = useState<CrewNote[]>([]);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [voiceCommand, setVoiceCommand] = useState<string>('');
+
+  // Phase 1: Enhanced Features State
+  const [hapticEnabled, setHapticEnabled] = useState<boolean>(true);
+  const [largeButtonMode, setLargeButtonMode] = useState<boolean>(false);
+  const [weatherData, setWeatherData] = useState<{
+    temperature: number;
+    conditions: string;
+    windSpeed: number;
+  } | null>(null);
+  const [quickTemplateMode, setQuickTemplateMode] = useState<boolean>(false);
+
+  // Phase 2: Intelligence & Analytics State
+  const [intelligenceData, setIntelligenceData] = useState<{
+    teamPatterns: Record<string, any>;
+    penaltyTrends: any[];
+    predictions: any[];
+  }>({
+    teamPatterns: {},
+    penaltyTrends: [],
+    predictions: []
+  });
+  const [realTimeSheetsSync, setRealTimeSheetsSync] = useState<boolean>(false);
+  const [weatherMode, setWeatherMode] = useState<'normal' | 'cold' | 'bright'>('normal');
 
   // Phase 8: PWA & Mobile State
   const [pwaSettings, setPwaSettings] = useState<PWASettings>({
@@ -704,6 +738,180 @@ const RMACOfficialsPWA: React.FC = () => {
       oscillator.stop(audioContext.currentTime + 0.3);
     } catch (error) {
       console.error('Audio error:', error);
+    }
+  };
+
+  // Phase 1: Enhanced Features Functions
+  const triggerHapticFeedback = (pattern: 'light' | 'medium' | 'heavy' = 'medium') => {
+    if (!hapticEnabled || !navigator.vibrate) return;
+    
+    const patterns = {
+      light: [50],
+      medium: [100],
+      heavy: [200, 100, 200]
+    };
+    
+    navigator.vibrate(patterns[pattern]);
+  };
+
+  const fetchWeatherData = async (lat?: number, lon?: number) => {
+    try {
+      // Using OpenWeatherMap API - replace with your API key
+      const API_KEY = process.env.NEXT_PUBLIC_WEATHER_API_KEY;
+      if (!API_KEY) return;
+
+      const coords = lat && lon ? { lat, lon } : await getCurrentLocation();
+      const response = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?lat=${coords.lat}&lon=${coords.lon}&appid=${API_KEY}&units=imperial`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        const weather = {
+          temperature: Math.round(data.main.temp),
+          conditions: data.weather[0].main,
+          windSpeed: Math.round(data.wind.speed)
+        };
+        
+        setWeatherData(weather);
+        
+        // Auto-adjust UI based on weather
+        if (weather.temperature < 40) {
+          setWeatherMode('cold');
+          setLargeButtonMode(true);
+        } else if (weather.conditions === 'Clear' && weather.temperature > 80) {
+          setWeatherMode('bright');
+        } else {
+          setWeatherMode('normal');
+        }
+      }
+    } catch (error) {
+      console.error('Weather fetch error:', error);
+    }
+  };
+
+  const getCurrentLocation = (): Promise<{lat: number, lon: number}> => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation not supported'));
+        return;
+      }
+      
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            lat: position.coords.latitude,
+            lon: position.coords.longitude
+          });
+        },
+        (error) => {
+          // Default to Denver, CO if location fails
+          resolve({ lat: 39.7392, lon: -104.9903 });
+        },
+        { timeout: 10000 }
+      );
+    });
+  };
+
+  // Phase 2: Intelligence & Analytics Functions
+  const analyzeTeamPatterns = (teamPenalties: Penalty[]) => {
+    const patterns = {
+      mostCommonPenalties: {} as Record<string, number>,
+      timePatterns: {} as Record<string, number>,
+      situationalPatterns: {} as Record<string, number>,
+      officialPatterns: {} as Record<string, number>
+    };
+
+    teamPenalties.forEach(penalty => {
+      // Track penalty types
+      patterns.mostCommonPenalties[penalty.code] = 
+        (patterns.mostCommonPenalties[penalty.code] || 0) + 1;
+      
+      // Track time patterns
+      const timeKey = `${penalty.quarter}-${penalty.time.split(':')[0]}`;
+      patterns.timePatterns[timeKey] = 
+        (patterns.timePatterns[timeKey] || 0) + 1;
+      
+      // Track situational patterns
+      const situationKey = `${penalty.down}-${penalty.fieldPosition}`;
+      patterns.situationalPatterns[situationKey] = 
+        (patterns.situationalPatterns[situationKey] || 0) + 1;
+      
+      // Track official patterns
+      patterns.officialPatterns[penalty.callingOfficial] = 
+        (patterns.officialPatterns[penalty.callingOfficial] || 0) + 1;
+    });
+
+    return patterns;
+  };
+
+  const generatePredictions = (gameContext: any) => {
+    const predictions = [];
+    
+    // Situational predictions based on down, distance, field position
+    if (gameContext.down === '3' && parseInt(gameContext.distance) > 7) {
+      predictions.push({
+        type: 'situational',
+        message: 'Watch for holding on pass protection - 3rd & long',
+        confidence: 75,
+        color: 'yellow'
+      });
+    }
+    
+    if (gameContext.fieldPosition <= 20 || gameContext.fieldPosition >= 80) {
+      predictions.push({
+        type: 'field_position',
+        message: 'Red zone - increased penalty likelihood',
+        confidence: 65,
+        color: 'orange'
+      });
+    }
+    
+    // Weather-based predictions
+    if (weatherData?.temperature && weatherData.temperature < 35) {
+      predictions.push({
+        type: 'weather',
+        message: 'Cold weather - watch for ball handling issues',
+        confidence: 60,
+        color: 'blue'
+      });
+    }
+    
+    if (weatherData?.windSpeed && weatherData.windSpeed > 15) {
+      predictions.push({
+        type: 'weather',
+        message: 'High winds - kicking game adjustments likely',
+        confidence: 70,
+        color: 'purple'
+      });
+    }
+    
+    return predictions;
+  };
+
+  const syncToSheetsRealTime = async (penaltyData: Penalty) => {
+    if (!realTimeSheetsSync) return;
+    
+    try {
+      const response = await fetch('/api/google-sheets-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_penalty',
+          data: {
+            ...penaltyData,
+            gameId: currentGame?.id,
+            crew: crewData?.name,
+            timestamp: new Date().toISOString()
+          }
+        })
+      });
+      
+      if (response.ok) {
+        console.log('Real-time sync successful');
+      }
+    } catch (error) {
+      console.error('Real-time sheets sync failed:', error);
     }
   };
 
@@ -841,11 +1049,19 @@ const RMACOfficialsPWA: React.FC = () => {
     setPenalties(newPenalties);
     playSound('whistle');
     
+    // Phase 1: Haptic feedback
+    triggerHapticFeedback('medium');
+    
     // Save to offline storage
     try {
       await offlineStorage.queuePenalty(penalty);
     } catch (error) {
       console.error('Failed to queue penalty offline:', error);
+    }
+    
+    // Phase 2: Real-time Sheets sync
+    if (realTimeSheetsSync) {
+      await syncToSheetsRealTime(penalty);
     }
     
     // Backup to Google Drive
@@ -866,6 +1082,22 @@ const RMACOfficialsPWA: React.FC = () => {
       } catch (error) {
         console.error('Failed to save game to localStorage:', error);
       }
+    }
+    
+    // Phase 2: Update intelligence data
+    if (currentGame) {
+      const teamName = team === 'O' ? currentGame.homeTeam : currentGame.awayTeam;
+      const patterns = analyzeTeamPatterns(newPenalties.filter(p => 
+        (p.team === 'O' ? currentGame.homeTeam : currentGame.awayTeam) === teamName
+      ));
+      
+      setIntelligenceData(prev => ({
+        ...prev,
+        teamPatterns: {
+          ...prev.teamPatterns,
+          [teamName]: patterns
+        }
+      }));
     }
     
     setSelectedPenalty('');
@@ -921,30 +1153,113 @@ const RMACOfficialsPWA: React.FC = () => {
   };
 
   // Add missing functions
-  const startNewGame = (homeTeam: string, awayTeam: string) => {
-    const crewSelect = document.getElementById('crewSelect') as HTMLSelectElement;
-    const selectedCrewId = crewSelect?.value || '';
+  const startNewGame = () => {
+    if (!selectedCrew || !selectedHomeTeam || !selectedAwayTeam) {
+      alert('Please select crew, home team, and away team');
+      return;
+    }
     
-    if (!selectedCrewId) {
-      alert('Please select an officiating crew');
+    if (selectedHomeTeam === selectedAwayTeam) {
+      alert('Home and away teams cannot be the same');
       return;
     }
     
     const newGame: Game = {
       id: Date.now().toString(),
-      homeTeam,
-      awayTeam,
+      homeTeam: selectedHomeTeam,
+      awayTeam: selectedAwayTeam,
       date: new Date().toISOString(),
       penalties: [],
-      crew: selectedCrewId
+      crew: selectedCrew
     };
     
     setCurrentGame(newGame);
-    setCrewData(RMAC_CREWS[selectedCrewId]);
+    setCrewData(RMAC_CREWS[selectedCrew]);
     setPenalties([]);
     setGameEvents([]);
     setCrewNotes([]);
     setPossession('home');
+    setGameStarted(true);
+    
+    // Phase 1: Initialize weather data when game starts
+    fetchWeatherData();
+  };
+
+  // Phase 1: Quick template selection
+  const selectQuickTemplate = (template: { code: string; team: string }) => {
+    setSelectedPenalty(template.code);
+    setTeam(template.team);
+    triggerHapticFeedback('light');
+    
+    // Auto-focus on player number input
+    setTimeout(() => {
+      const playerInput = document.querySelector('input[placeholder*="Player"]') as HTMLInputElement;
+      if (playerInput) {
+        playerInput.focus();
+      }
+    }, 100);
+  };
+
+  // Phase 6: Custom team functions
+  const saveCustomTeam = (teamName: string): string => {
+    const trimmedName = teamName.trim();
+    if (!trimmedName) return trimmedName;
+    
+    // Format to title case
+    const formattedName = trimmedName.replace(/\w\S*/g, (txt) => 
+      txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+    );
+    
+    // Add to history (max 10 teams)
+    const updatedHistory = [formattedName, ...customTeamHistory.filter(t => t !== formattedName)].slice(0, 10);
+    setCustomTeamHistory(updatedHistory);
+    localStorage.setItem('rmac_custom_teams', JSON.stringify(updatedHistory));
+    
+    return formattedName;
+  };
+
+  const handleHomeTeamChange = (value: string) => {
+    if (value === 'custom') {
+      setShowCustomHomeInput(true);
+      setSelectedHomeTeam('');
+    } else {
+      setSelectedHomeTeam(value);
+      setShowCustomHomeInput(false);
+      setCustomHomeTeam('');
+    }
+  };
+
+  const handleAwayTeamChange = (value: string) => {
+    if (value === 'custom') {
+      setShowCustomAwayInput(true);
+      setSelectedAwayTeam('');
+    } else {
+      setSelectedAwayTeam(value);
+      setShowCustomAwayInput(false);
+      setCustomAwayTeam('');
+    }
+  };
+
+  const handleCustomHomeSubmit = () => {
+    if (customHomeTeam.trim()) {
+      const formattedTeam = saveCustomTeam(customHomeTeam);
+      if (formattedTeam) {
+        setSelectedHomeTeam(formattedTeam);
+        setShowCustomHomeInput(false);
+        setCustomHomeTeam('');
+      }
+    }
+  };
+
+  const handleCustomAwaySubmit = () => {
+    if (customAwayTeam.trim()) {
+      const formattedTeam = saveCustomTeam(customAwayTeam);
+      if (formattedTeam) {
+        setSelectedAwayTeam(formattedTeam);
+        setShowCustomAwayInput(false);
+        setCustomAwayTeam('');
+      }
+    }
   };
 
   const deletePenalty = (penaltyId: number) => {
@@ -1558,6 +1873,48 @@ Submitted on: ${new Date(synopsis.submittedAt).toLocaleString()}
     }
   }, [currentGame, crewData]);
 
+  // Phase 1: Initialize enhanced features
+  useEffect(() => {
+    // Load preferences
+    const hapticPref = localStorage.getItem('haptic_enabled') !== 'false';
+    const largeBtnPref = localStorage.getItem('large_button_mode') === 'true';
+    const quickTemplatePref = localStorage.getItem('quick_template_mode') === 'true';
+    const realTimeSyncPref = localStorage.getItem('realtime_sheets_sync') === 'true';
+    
+    setHapticEnabled(hapticPref);
+    setLargeButtonMode(largeBtnPref);
+    setQuickTemplateMode(quickTemplatePref);
+    setRealTimeSheetsSync(realTimeSyncPref);
+    
+    // Fetch initial weather data
+    fetchWeatherData();
+    
+    // Set up weather refresh interval (every 30 minutes)
+    const weatherInterval = setInterval(() => {
+      fetchWeatherData();
+    }, 30 * 60 * 1000);
+    
+    return () => clearInterval(weatherInterval);
+  }, []);
+
+  // Phase 2: Update predictions when game state changes
+  useEffect(() => {
+    if (currentGame) {
+      const predictions = generatePredictions({
+        down,
+        distance,
+        fieldPosition,
+        quarter,
+        gameTime
+      });
+      
+      setIntelligenceData(prev => ({
+        ...prev,
+        predictions
+      }));
+    }
+  }, [down, distance, fieldPosition, quarter, gameTime, weatherData]);
+
   // Connection monitoring
   useEffect(() => {
     const cleanup = onConnectionChange((online) => {
@@ -1660,27 +2017,27 @@ Submitted on: ${new Date(synopsis.submittedAt).toLocaleString()}
     };
   }, [gameClockRunning, sidelineMode]);
 
-  // Auto-generate and send reports (updated dependencies)
-  useEffect(() => {
-    const checkForAutoReport = () => {
-      const currentWeek = getCurrentWeek();
-      const lastReportWeek = weeklyReports.length > 0 ? 
-        Math.max(...weeklyReports.map(r => r.week)) : 0;
-      
-      if (currentWeek > lastReportWeek && emailSettings.autoSendWeeklyReports) {
-        generateWeeklyReport(currentWeek).then((report: WeeklyReport) => {
-          if (emailSettings.autoSendWeeklyReports) {
-            sendWeeklyReportEmail(report);
-          }
-        });
-      }
-    };
+  // Auto-generate and send reports (disabled for demo to prevent infinite loop)
+  // useEffect(() => {
+  //   const checkForAutoReport = () => {
+  //     const currentWeek = getCurrentWeek();
+  //     const lastReportWeek = weeklyReports.length > 0 ? 
+  //       Math.max(...weeklyReports.map(r => r.week)) : 0;
+  //     
+  //     if (currentWeek > lastReportWeek && emailSettings.autoSendWeeklyReports) {
+  //       generateWeeklyReport(currentWeek).then((report: WeeklyReport) => {
+  //         if (emailSettings.autoSendWeeklyReports) {
+  //           sendWeeklyReportEmail(report);
+  //         }
+  //       });
+  //     }
+  //   };
 
-    const interval = setInterval(checkForAutoReport, 24 * 60 * 60 * 1000);
-    checkForAutoReport();
-    
-    return () => clearInterval(interval);
-  }, [weeklyReports, emailSettings.autoSendWeeklyReports]);
+  //   const interval = setInterval(checkForAutoReport, 24 * 60 * 60 * 1000);
+  //   checkForAutoReport();
+  //   
+  //   return () => clearInterval(interval);
+  // }, [weeklyReports, emailSettings.autoSendWeeklyReports]);
 
   // Add missing component definitions
   const PWASettingsPanel = () => (
@@ -2455,12 +2812,781 @@ Submitted on: ${new Date(synopsis.submittedAt).toLocaleString()}
     </div>
   );
 
+  // Show game setup screen if no game is started
+  if (!gameStarted || !currentGame) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="max-w-md w-full mx-4">
+          <h1 className="text-4xl font-bold text-center mb-8">RMAC Officials Assistant</h1>
+          
+          <div className="bg-gray-800 p-6 rounded-xl shadow-lg">
+            <h2 className="text-2xl font-bold mb-6 text-center">Start New Game</h2>
+            
+            <div className="space-y-4">
+              {/* Crew Selection */}
+              <div>
+                <select 
+                  value={selectedCrew} 
+                  onChange={(e) => setSelectedCrew(e.target.value)}
+                  className="w-full p-4 bg-gray-700 border border-gray-600 rounded-lg text-white text-lg"
+                >
+                  <option value="">Select Officiating Crew</option>
+                  {Object.entries(RMAC_CREWS).map(([crewId, crew]) => (
+                    <option key={crewId} value={crewId}>
+                      {crew.name} - {crew.officials.R}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Home Team Selection */}
+              <div>
+                <select 
+                  value={selectedHomeTeam} 
+                  onChange={(e) => handleHomeTeamChange(e.target.value)}
+                  className="w-full p-4 bg-gray-700 border border-gray-600 rounded-lg text-white text-lg"
+                >
+                  <option value="">Select Home Team</option>
+                  {rmacTeams.map((team) => (
+                    <option key={team} value={team} disabled={team === selectedAwayTeam}>
+                      {team}
+                    </option>
+                  ))}
+                  <option value="custom">➕ Other Team (Non-RMAC)</option>
+                  {customTeamHistory.length > 0 && (
+                    <optgroup label="Recent Custom Teams">
+                      {customTeamHistory.map((team, index) => (
+                        <option key={`custom-${index}`} value={team} disabled={team === selectedAwayTeam}>
+                          {team}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                {showCustomHomeInput && (
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      type="text"
+                      value={customHomeTeam}
+                      onChange={(e) => setCustomHomeTeam(e.target.value)}
+                      placeholder="Enter team name (e.g., Northern Colorado)"
+                      maxLength={50}
+                      className="flex-1 p-3 bg-gray-600 border border-gray-500 rounded-lg text-white"
+                      onKeyPress={(e) => e.key === 'Enter' && handleCustomHomeSubmit()}
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleCustomHomeSubmit}
+                      disabled={!customHomeTeam.trim()}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-lg font-bold"
+                    >
+                      ✓
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowCustomHomeInput(false);
+                        setCustomHomeTeam('');
+                      }}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-bold"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Away Team Selection */}
+              <div>
+                <select 
+                  value={selectedAwayTeam} 
+                  onChange={(e) => handleAwayTeamChange(e.target.value)}
+                  className="w-full p-4 bg-gray-700 border border-gray-600 rounded-lg text-white text-lg"
+                >
+                  <option value="">Select Away Team</option>
+                  {rmacTeams.map((team) => (
+                    <option key={team} value={team} disabled={team === selectedHomeTeam}>
+                      {team}
+                    </option>
+                  ))}
+                  <option value="custom">➕ Other Team (Non-RMAC)</option>
+                  {customTeamHistory.length > 0 && (
+                    <optgroup label="Recent Custom Teams">
+                      {customTeamHistory.map((team, index) => (
+                        <option key={`custom-${index}`} value={team} disabled={team === selectedHomeTeam}>
+                          {team}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                {showCustomAwayInput && (
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      type="text"
+                      value={customAwayTeam}
+                      onChange={(e) => setCustomAwayTeam(e.target.value)}
+                      placeholder="Enter team name (e.g., Northern Colorado)"
+                      maxLength={50}
+                      className="flex-1 p-3 bg-gray-600 border border-gray-500 rounded-lg text-white"
+                      onKeyPress={(e) => e.key === 'Enter' && handleCustomAwaySubmit()}
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleCustomAwaySubmit}
+                      disabled={!customAwayTeam.trim()}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-lg font-bold"
+                    >
+                      ✓
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowCustomAwayInput(false);
+                        setCustomAwayTeam('');
+                      }}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-bold"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Start Game Button */}
+              <button 
+                onClick={startNewGame}
+                disabled={!selectedCrew || !selectedHomeTeam || !selectedAwayTeam}
+                className="w-full p-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:text-gray-400 rounded-lg font-bold text-xl transition-colors"
+              >
+                Start Game
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Main game interface
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      <div className="p-4">
-        <h1 className="text-2xl font-bold mb-4">RMAC Officials Assistant</h1>
-        <p>Component needs proper implementation</p>
+      {/* Header */}
+      <header className="bg-gray-800 p-4 border-b border-gray-700">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">RMAC Officials Assistant</h1>
+          <div className="flex items-center gap-4">
+            {/* Phase 1: Weather Display */}
+            {weatherData && (
+              <div className="text-right">
+                <div className="text-sm text-gray-400">Weather</div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm font-semibold ${
+                    weatherMode === 'cold' ? 'text-blue-400' : 
+                    weatherMode === 'bright' ? 'text-yellow-400' : 'text-green-400'
+                  }`}>
+                    {weatherData.temperature}°F
+                  </span>
+                  {weatherData.windSpeed > 10 && (
+                    <span className="text-xs text-orange-400">Wind {weatherData.windSpeed}mph</span>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            <div className="text-right">
+              <div className="text-sm text-gray-400">Status</div>
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${isOffline ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                <span className={`font-semibold ${isOffline ? 'text-red-400' : 'text-green-400'}`}>
+                  {isOffline ? 'Offline' : 'Online'}
+                </span>
+                {queuedPenalties > 0 && (
+                  <span className="text-xs bg-orange-600 px-2 py-1 rounded">{queuedPenalties}</span>
+                )}
+              </div>
+            </div>
+            
+            {/* Phase 1: Enhanced Settings */}
+            <div className="flex gap-2">
+              {/* Phase 5: Sideline Mode Toggle */}
+              <button 
+                onClick={() => {
+                  setSidelineMode(!sidelineMode);
+                  triggerHapticFeedback('medium');
+                }}
+                className={`p-2 rounded-lg ${sidelineMode ? 'bg-purple-600' : 'bg-gray-600'} hover:opacity-80`}
+                title="Sideline Mode - Simplified interface for non-football volunteers"
+              >
+                <Users className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => setQuickTemplateMode(!quickTemplateMode)}
+                className={`p-2 rounded-lg ${quickTemplateMode ? 'bg-blue-600' : 'bg-gray-600'} hover:opacity-80`}
+                title="Quick Templates"
+              >
+                <Target className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => {
+                  setLargeButtonMode(!largeButtonMode);
+                  localStorage.setItem('large_button_mode', (!largeButtonMode).toString());
+                }}
+                className={`p-2 rounded-lg ${largeButtonMode ? 'bg-green-600' : 'bg-gray-600'} hover:opacity-80`}
+                title="Large Button Mode"
+              >
+                <Maximize className="w-5 h-5" />
+              </button>
+              <button className="p-2 bg-blue-600 hover:bg-blue-700 rounded-lg">
+                <ClipboardList className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Team Matchup */}
+      <div className="p-4 bg-gray-800 border-b border-gray-700">
+        <div className="flex items-center justify-center gap-6">
+          <div className="flex items-center gap-3 px-4 py-2 bg-green-700 rounded-full border-2 border-yellow-400">
+            <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
+            <span className="font-bold">{currentGame.homeTeam}</span>
+            <span className="text-sm bg-green-600 px-2 py-1 rounded">HOME</span>
+          </div>
+          <span className="text-2xl font-bold text-gray-400">VS</span>
+          <div className="flex items-center gap-3 px-4 py-2 bg-green-800 rounded-full">
+            <div className="w-3 h-3 bg-black rounded-full"></div>
+            <span className="font-bold">{currentGame.awayTeam}</span>
+            <span className="text-sm bg-gray-600 px-2 py-1 rounded">AWAY</span>
+          </div>
+        </div>
+        
+        {/* Phase 5: Sideline Mode Indicator */}
+        {sidelineMode && (
+          <div className="mt-4 p-3 bg-purple-600 bg-opacity-20 border border-purple-400 rounded-lg text-center">
+            <div className="flex items-center justify-center gap-2">
+              <Users className="w-5 h-5 text-purple-400" />
+              <span className="text-purple-200 font-bold">SIDELINE MODE - Simplified Interface for Volunteers</span>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Phase 5: Conditional Interface - Sideline Mode vs Official Mode */}
+      {sidelineMode ? (
+        // SIDELINE MODE: Simplified interface for non-football-savvy volunteers
+        <div className="space-y-0">
+          <SidelineGameClock />
+          <SidelineScoreboard />
+          <SidelinePenaltyEntry />
+        </div>
+      ) : (
+        // OFFICIAL MODE: Full-featured interface
+        <>
+          {/* Navigation Tabs */}
+          <div className="p-4 border-b border-gray-700">
+            <div className="flex gap-2">
+          <button className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg">
+            <Mic className="w-4 h-4" />
+            <span>Voice</span>
+          </button>
+          <button className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg">
+            <BarChart3 className="w-4 h-4" />
+            <span>Analytics</span>
+          </button>
+          <button className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg">
+            <Shield className="w-4 h-4" />
+            <span>Enforce</span>
+          </button>
+          <button className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg">
+            <FileText className="w-4 h-4" />
+            <span>Notes</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Phase 2: Predictive Analytics */}
+      {intelligenceData.predictions.length > 0 && (
+        <div className="p-4 bg-gradient-to-r from-purple-900 to-purple-800 border-b border-purple-600">
+          <div className="flex items-center gap-2 mb-3">
+            <Brain className="w-5 h-5 text-purple-300" />
+            <h3 className="font-bold text-purple-100">AI Predictions</h3>
+          </div>
+          <div className="space-y-2">
+            {intelligenceData.predictions.map((prediction, index) => (
+              <div key={index} className={`p-3 rounded-lg border-l-4 ${
+                prediction.color === 'yellow' ? 'bg-yellow-900 border-yellow-400' :
+                prediction.color === 'orange' ? 'bg-orange-900 border-orange-400' :
+                prediction.color === 'blue' ? 'bg-blue-900 border-blue-400' :
+                prediction.color === 'purple' ? 'bg-purple-900 border-purple-400' :
+                'bg-gray-800 border-gray-500'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">{prediction.message}</span>
+                  <span className="text-xs text-gray-300">
+                    {prediction.confidence}% confidence
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Phase 1: Quick Template Entry */}
+      {quickTemplateMode && (
+        <QuickEntryTemplates onTemplateSelect={selectQuickTemplate} />
+      )}
+
+      {/* Number Pad Modal */}
+      {showNumberPad && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl shadow-xl p-6 max-w-sm w-full">
+            <h3 className="text-xl font-bold mb-4 text-center">Enter Player Number</h3>
+            <div className="mb-4">
+              <div className="text-center text-3xl font-bold bg-gray-700 p-4 rounded-lg mb-4">
+                {playerNumber || '00'}
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                <button
+                  key={num}
+                  onClick={() => {
+                    if (playerNumber.length < 2) {
+                      setPlayerNumber(prev => prev + num.toString());
+                      triggerHapticFeedback('light');
+                    }
+                  }}
+                  className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold text-xl transition-all"
+                >
+                  {num}
+                </button>
+              ))}
+              <button
+                onClick={() => {
+                  setPlayerNumber('');
+                  triggerHapticFeedback('medium');
+                }}
+                className="p-4 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-xl transition-all"
+              >
+                CLR
+              </button>
+              <button
+                onClick={() => {
+                  if (playerNumber.length < 2) {
+                    setPlayerNumber(prev => prev + '0');
+                    triggerHapticFeedback('light');
+                  }
+                }}
+                className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold text-xl transition-all"
+              >
+                0
+              </button>
+              <button
+                onClick={() => {
+                  setPlayerNumber(prev => prev.slice(0, -1));
+                  triggerHapticFeedback('light');
+                }}
+                className="p-4 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-bold text-xl transition-all"
+              >
+                ⌫
+              </button>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowNumberPad(false)}
+                className="flex-1 p-3 bg-gray-600 hover:bg-gray-700 rounded-lg font-bold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowNumberPad(false);
+                  triggerHapticFeedback('medium');
+                }}
+                className="flex-1 p-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold transition-all"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="p-4 space-y-6">
+        {/* Game Status */}
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-5 h-5" />
+            <h2 className="text-xl font-bold">Game Status</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-gray-800 p-4 rounded-lg">
+              <select 
+                value={quarter} 
+                onChange={(e) => setQuarter(e.target.value)}
+                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-lg"
+              >
+                <option value="1st">1st Quarter</option>
+                <option value="2nd">2nd Quarter</option>
+                <option value="3rd">3rd Quarter</option>
+                <option value="4th">4th Quarter</option>
+                <option value="OT">Overtime</option>
+              </select>
+            </div>
+            <div className="bg-gray-800 p-4 rounded-lg flex items-center justify-center">
+              <input
+                type="text"
+                value={gameTime}
+                onChange={(e) => setGameTime(e.target.value)}
+                className="w-full text-center text-3xl font-mono bg-transparent border-none outline-none"
+                placeholder="15:00"
+              />
+            </div>
+            <div className="bg-gray-800 p-4 rounded-lg">
+              <input
+                type="text"
+                value={down}
+                onChange={(e) => setDown(e.target.value)}
+                className="w-full text-center text-3xl font-mono bg-transparent border-none outline-none"
+                placeholder="1"
+              />
+            </div>
+            <div className="bg-gray-800 p-4 rounded-lg">
+              <input
+                type="text"
+                value={distance}
+                onChange={(e) => setDistance(e.target.value)}
+                className="w-full text-center text-3xl font-mono bg-transparent border-none outline-none"
+                placeholder="10"
+              />
+            </div>
+          </div>
+          <div className="mt-4 bg-gray-800 p-4 rounded-lg flex items-center justify-center">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-5 h-5" />
+              <span className="text-3xl font-mono font-bold">{fieldPosition}</span>
+            </div>
+          </div>
+        </section>
+
+        {/* Add Penalty */}
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle className="w-5 h-5" />
+            <h2 className="text-xl font-bold">Add Penalty</h2>
+          </div>
+          
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="font-semibold">Possession:</span>
+              <button 
+                onClick={() => setPossession(possession === 'home' ? 'away' : 'home')}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold"
+              >
+                <RefreshCw className="w-4 h-4" />
+                {possession === 'home' ? currentGame.homeTeam : currentGame.awayTeam}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <button 
+              onClick={() => {
+                setTeam('O');
+                triggerHapticFeedback('light');
+              }}
+              className={`${largeButtonMode ? 'p-6' : 'p-4'} rounded-lg border-2 font-bold transition-all ${
+                team === 'O' 
+                  ? 'bg-green-700 border-yellow-400 text-white' 
+                  : 'bg-gray-700 border-gray-600 hover:bg-gray-600'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                <span className={largeButtonMode ? 'text-lg' : ''}>OFFENSE</span>
+              </div>
+              <div className="text-sm mt-1">{possession === 'home' ? currentGame.homeTeam : currentGame.awayTeam}</div>
+            </button>
+            <button 
+              onClick={() => {
+                setTeam('D');
+                triggerHapticFeedback('light');
+              }}
+              className={`${largeButtonMode ? 'p-6' : 'p-4'} rounded-lg border-2 font-bold transition-all ${
+                team === 'D' 
+                  ? 'bg-gray-600 border-gray-400' 
+                  : 'bg-gray-700 border-gray-600 hover:bg-gray-600'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-3 h-3 bg-black rounded-full"></div>
+                <span className={largeButtonMode ? 'text-lg' : ''}>DEFENSE</span>
+              </div>
+              <div className="text-sm mt-1">{possession === 'home' ? currentGame.awayTeam : currentGame.homeTeam}</div>
+            </button>
+            <button 
+              onClick={() => {
+                setTeam('S');
+                triggerHapticFeedback('light');
+              }}
+              className={`${largeButtonMode ? 'p-6' : 'p-4'} rounded-lg border-2 font-bold transition-all ${
+                team === 'S' 
+                  ? 'bg-blue-600 border-blue-400' 
+                  : 'bg-gray-700 border-gray-600 hover:bg-gray-600'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <Flag className="w-4 h-4" />
+                <span className={largeButtonMode ? 'text-lg' : ''}>SPECIAL</span>
+              </div>
+              <div className="text-sm mt-1">Kick/Punt</div>
+            </button>
+          </div>
+
+          <div className="bg-gray-800 p-4 rounded-lg mb-4">
+            <select 
+              value={selectedPenalty} 
+              onChange={(e) => setSelectedPenalty(e.target.value)}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            >
+              <option value="">Select Penalty Code</option>
+              {Object.entries(penaltyTypes).map(([code, data]) => (
+                <option key={code} value={code}>
+                  {code} - {data.name} ({data.yards} yards)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="bg-gray-800 p-4 rounded-lg relative">
+              <input
+                type="text"
+                value={playerNumber}
+                onChange={(e) => setPlayerNumber(e.target.value)}
+                className="w-full text-center text-xl bg-transparent border-none outline-none"
+                placeholder="Player #00"
+                maxLength={2}
+              />
+              <button
+                onClick={() => setShowNumberPad(true)}
+                className="absolute right-2 top-2 p-2 bg-blue-600 hover:bg-blue-700 rounded-lg"
+                title="Number Pad"
+              >
+                <Calculator className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="bg-gray-800 p-4 rounded-lg">
+              <select 
+                value={callingOfficial} 
+                onChange={(e) => setCallingOfficial(e.target.value)}
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
+              >
+                {Object.entries(crewData?.officials || {}).map(([position, name]) => (
+                  <option key={position} value={position}>
+                    {position} - {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Description (optional)"
+            className="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white resize-none"
+            rows={2}
+          />
+
+          <button 
+            onClick={() => {
+              addPenalty();
+              triggerHapticFeedback('heavy');
+            }}
+            disabled={!selectedPenalty || !playerNumber}
+            className={`w-full mt-4 ${largeButtonMode ? 'p-6 text-xl' : 'p-4 text-lg'} ${
+              !selectedPenalty || !playerNumber 
+                ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
+                : 'bg-red-600 hover:bg-red-700 text-white'
+            } rounded-lg font-bold transition-all`}
+          >
+            {!selectedPenalty || !playerNumber ? 'Select Penalty & Player' : 'ADD PENALTY'}
+          </button>
+        </section>
+
+        {/* RMAC Intelligence Network */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
+                <Network className="w-5 h-5" />
+              </div>
+              <h2 className="text-xl font-bold">RMAC Intelligence Network</h2>
+            </div>
+            <span className="text-sm text-gray-400">All Crews Connected</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="bg-gray-800 p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-3">
+                <Users className="w-5 h-5" />
+                <h3 className="font-bold">Network Status</h3>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Connected Crews:</span>
+                  <span className="text-green-400 font-bold">5/5</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>This Week's Games:</span>
+                  <span className="text-blue-400 font-bold">8</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total Intelligence Points:</span>
+                  <span className="text-yellow-400 font-bold">0</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-800 p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp className="w-5 h-5" />
+                <h3 className="font-bold">This Week's Focus</h3>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                  <span>Watch #74 Colorado Mesa (4 holds)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span>Adams State averaging 8.2 penalties</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                  <span>Wind advisory for 3 locations</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <button className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold">
+              <Upload className="w-5 h-5 mx-auto mb-2" />
+              Contribute Intelligence
+            </button>
+            <button className="p-4 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold">
+              <Eye className="w-5 h-5 mx-auto mb-2" />
+              View Master Intelligence
+            </button>
+          </div>
+
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-3">
+              <Radio className="w-5 h-5" />
+              <h3 className="font-bold">Latest from the Network</h3>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div>
+                <span className="text-blue-400 font-semibold">Crew 3:</span>
+                <span className="ml-2">"Colorado Mesa #74 grabbing jerseys on every sweep play"</span>
+              </div>
+              <div>
+                <span className="text-blue-400 font-semibold">Crew 1:</span>
+                <span className="ml-2">"Adams State coach heated about DPI calls - watch for unsportsmanlike"</span>
+              </div>
+              <div>
+                <span className="text-blue-400 font-semibold">Crew 5:</span>
+                <span className="ml-2">"Western Colorado using quick snap counts in red zone"</span>
+              </div>
+            </div>
+            
+            <div className="mt-4 pt-4 border-t border-gray-700 flex items-center justify-center gap-6 text-xs text-green-400">
+              <div className="flex items-center gap-1">
+                <Check className="w-3 h-3" />
+                <span>All 5 crews sharing intelligence</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Check className="w-3 h-3" />
+                <span>Weekly automated reports</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Check className="w-3 h-3" />
+                <span>Real-time updates</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Google Sheets Sync */}
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <RefreshCw className="w-5 h-5" />
+            <h2 className="text-xl font-bold">Google Sheets Sync</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <button className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold">
+              <Upload className="w-5 h-5 mx-auto mb-2" />
+              Sync to Sheets
+            </button>
+            <button className="p-4 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold">
+              <FileText className="w-5 h-5 mx-auto mb-2" />
+              View Sheet
+            </button>
+          </div>
+          <p className="text-center text-gray-400 text-sm">
+            {penalties.length === 0 ? 'No penalties to sync yet' : `${penalties.length} penalties ready to sync`}
+          </p>
+        </section>
+
+        {/* Game Penalties */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="w-5 h-5" />
+              <h2 className="text-xl font-bold">Game Penalties ({penalties.length})</h2>
+            </div>
+            <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold">
+              <FileText className="w-4 h-4 inline mr-2" />
+              QwikRef
+            </button>
+          </div>
+          
+          {penalties.length === 0 ? (
+            <div className="bg-gray-800 p-8 rounded-lg text-center">
+              <ClipboardList className="w-16 h-16 mx-auto mb-4 text-gray-600" />
+              <p className="text-gray-400 text-lg mb-2">No penalties recorded yet</p>
+              <p className="text-gray-500">Add your first penalty above</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {penalties.map((penalty) => (
+                <div key={penalty.id} className="bg-gray-800 p-4 rounded-lg border-l-4 border-blue-500">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="font-bold text-blue-400">#{penalty.player}</span>
+                      <span className="ml-2 font-semibold">{penalty.code} - {penalty.name}</span>
+                      <span className="ml-2 text-gray-400">
+                        ({penalty.team === 'O' ? 'Offense' : penalty.team === 'D' ? 'Defense' : 'Special Teams'})
+                      </span>
+                      {penalty.description && (
+                        <p className="text-sm text-gray-400 mt-1">{penalty.description}</p>
+                      )}
+                    </div>
+                    <div className="text-right text-sm text-gray-400">
+                      <div>{penalty.quarter} - {penalty.time}</div>
+                      <div>Called by {penalty.callingOfficial}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+        </>
+      )}
     </div>
   );
 };
