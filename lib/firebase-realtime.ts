@@ -31,7 +31,7 @@ export class FirebaseRealtimeService {
   subscribeToGameChat(gameId: string, onMessage: (message: ChatMessage) => void) {
     const messagesRef = ref(database, `games/${gameId}/messages`);
     
-    const unsubscribe = onValue(messagesRef, (snapshot) => {
+    const unsubscribe = onValue(messagesRef, (snapshot: any) => {
       const messages = snapshot.val();
       if (messages) {
         Object.values(messages).forEach((message: any) => {
@@ -58,7 +58,7 @@ export class FirebaseRealtimeService {
   subscribeToGameUpdates(gameId: string, onUpdate: (update: any) => void) {
     const updatesRef = ref(database, `games/${gameId}/updates`);
     
-    const unsubscribe = onValue(updatesRef, (snapshot) => {
+    const unsubscribe = onValue(updatesRef, (snapshot: any) => {
       const updates = snapshot.val();
       if (updates) {
         Object.values(updates).forEach((update: any) => {

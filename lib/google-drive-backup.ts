@@ -1,15 +1,16 @@
 // Simple backup service - starts with localStorage, can be enhanced later
 
+interface BackupResult {
+  success: boolean;
+  fileId?: string;
+  fileName?: string;
+  error?: string;
+}
+
 interface BackupStatus {
   lastBackupTime: string | null;
   backupCount: number;
   isBackingUp: boolean;
-}
-
-interface BackupResult {
-  success: boolean;
-  fileId?: string;
-  error?: string;
 }
 
 export class GoogleDriveBackupService {
@@ -97,73 +98,6 @@ export class GoogleDriveBackupService {
         success: true,
         data: {} // Downloaded game data would go here
       };
-    } catch (error) {
-      console.error('Download backup failed:', error);
-      throw error;
-    }
-  }
-}
-
-// Create singleton instance
-export const driveBackup = new GoogleDriveBackupService();
-      };
-    } finally {
-      this.isBackingUp = false;
-    }
-  }
-
-  getBackupStatus(): BackupStatus {
-    return this.getStatus();
-  }
-
-  // New method to check if Google Drive is properly configured
-  async testConnection(): Promise<{ success: boolean; error?: string }> {
-    try {
-      const response = await fetch('/api/backup-to-drive', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fileName: 'test_connection.json',
-          folderName: 'RMAC_Test',
-          gameData: { test: true },
-          metadata: { test: true }
-        })
-      });
-
-      if (response.ok) {
-        return { success: true };
-      } else {
-        const error = await response.json();
-        return { success: false, error: error.error || 'Connection test failed' };
-      }
-    } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Connection test failed' 
-      };
-    }
-  }
-
-  async restoreFromBackup(backupKey: string): Promise<any> {
-    try {
-      const backupData = localStorage.getItem(backupKey);
-      if (!backupData) {
-        throw new Error('Backup not found');
-      }
-      
-      const backup = JSON.parse(backupData);
-      return backup.data;
-    } catch (error) {
-      console.error('Failed to restore backup:', error);
-      throw error;
-    }
-  }
-}
-
-// Create singleton instance
-export const driveBackup = new GoogleDriveBackupService();
     } catch (error) {
       console.error('Download backup failed:', error);
       throw error;

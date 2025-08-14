@@ -27,29 +27,3 @@ export default function RootLayout({
     </html>
   );
 }
-  );
-}
-        });
-    }
-
-    // Listen for service worker messages
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data.type === 'PENALTY_SYNCED') {
-          // Notify user that queued penalty was synced
-          window.dispatchEvent(new CustomEvent('penalty-synced', {
-            detail: event.data.data
-          }));
-        }
-      });
-    }
-  }, []);
-
-  return (
-    <html lang="en">
-      <body className={inter.className}>
-        {children}
-      </body>
-    </html>
-  );
-}
