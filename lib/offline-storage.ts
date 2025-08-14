@@ -1,109 +1,162 @@
-interface QueuedPenalty {
-  id: number;
+interface QueuedItem {
+  id: string;
+  type: 'penalty' | 'sync';
   data: any;
   timestamp: string;
   retryCount: number;
 }
 
 class OfflineStorage {
-  private dbName = 'RMACOffline';
-  private version = 1;
-  private storeName = 'penalty-queue';
+  private readonly QUEUE_PREFIX = 'rmac_queue_';
+  private readonly CONNECTION_KEY = 'rmac_is_online';
+  private connectionListeners: ((online: boolean) => void)[] = [];
 
-  async openDB(): Promise<IDBDatabase> {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.version);
-      
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
-      
-      request.onupgradeneeded = () => {
-        const db = request.result;
-        if (!db.objectStoreNames.contains(this.storeName)) {
-          db.createObjectStore(this.storeName, { keyPath: 'id' });
-        }
-      };
-    });
+  constructor() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => this.updateConnectionStatus(true));
+      window.addEventListener('offline', () => this.updateConnectionStatus(false));
+    }
   }
 
-  async addToQueue(penaltyData: any): Promise<void> {
-    const db = await this.openDB();
-    const transaction = db.transaction([this.storeName], 'readwrite');
-    const store = transaction.objectStore(this.storeName);
-    
-    const queueItem: QueuedPenalty = {
-      id: Date.now(),
-      data: penaltyData,
+  private updateConnectionStatus(online: boolean) {
+    localStorage.setItem(this.CONNECTION_KEY, online.toString());
+    this.connectionListeners.forEach(listener => listener(online));
+  }
+
+  async queuePenalty(penalty: any): Promise<void> {
+    const queueItem: QueuedItem = {
+      id: `${this.QUEUE_PREFIX}${Date.now()}_${Math.random()}`,
+      type: 'penalty',
+      data: penalty,
       timestamp: new Date().toISOString(),
       retryCount: 0
     };
     
-    return new Promise((resolve, reject) => {
-      const request = store.add(queueItem);
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  async getQueuedItems(): Promise<QueuedPenalty[]> {
-    const db = await this.openDB();
-    const transaction = db.transaction([this.storeName], 'readonly');
-    const store = transaction.objectStore(this.storeName);
-    
-    return new Promise((resolve, reject) => {
-      const request = store.getAll();
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  async removeFromQueue(id: number): Promise<void> {
-    const db = await this.openDB();
-    const transaction = db.transaction([this.storeName], 'readwrite');
-    const store = transaction.objectStore(this.storeName);
-    
-    return new Promise((resolve, reject) => {
-      const request = store.delete(id);
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  async clearQueue(): Promise<void> {
-    const db = await this.openDB();
-    const transaction = db.transaction([this.storeName], 'readwrite');
-    const store = transaction.objectStore(this.storeName);
-    
-    return new Promise((resolve, reject) => {
-      const request = store.clear();
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
+    localStorage.setItem(queueItem.id, JSON.stringify(queueItem));
   }
 
   async getQueueCount(): Promise<number> {
-    const db = await this.openDB();
-    const transaction = db.transaction([this.storeName], 'readonly');
-    const store = transaction.objectStore(this.storeName);
+    if (typeof window === 'undefined') return 0;
     
-    return new Promise((resolve, reject) => {
-      const request = store.count();
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+    const keys = Object.keys(localStorage);
+    return keys.filter(key => key.startsWith(this.QUEUE_PREFIX)).length;
+  }
+
+  async getQueuedItems(): Promise<QueuedItem[]> {
+    if (typeof window === 'undefined') return [];
+    
+    const items: QueuedItem[] = [];
+    const keys = Object.keys(localStorage);
+    
+    keys.forEach(key => {
+      if (key.startsWith(this.QUEUE_PREFIX)) {
+        try {
+          const item = JSON.parse(localStorage.getItem(key) || '');
+          items.push(item);
+        } catch (e) {
+          console.error('Failed to parse queued item:', e);
+        }
+      }
+    });
+    
+    return items.sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+  }
+
+  async removeFromQueue(id: string): Promise<void> {
+    localStorage.removeItem(id);
+  }
+
+  async clearQueue(): Promise<void> {
+    const keys = Object.keys(localStorage);
+    keys.forEach(key => {
+      if (key.startsWith(this.QUEUE_PREFIX)) {
+        localStorage.removeItem(key);
+      }
+    });
+  }
+
+  async processQueue(syncFunction: (item: any) => Promise<boolean>): Promise<{
+    successful: number;
+    failed: number;
+  }> {
+    const items = await this.getQueuedItems();
+    let successful = 0;
+    let failed = 0;
+
+    for (const item of items) {
+      try {
+        const success = await syncFunction(item.data);
+        if (success) {
+          await this.removeFromQueue(item.id);
+          successful++;
+        } else {
+          failed++;
+          item.retryCount++;
+          localStorage.setItem(item.id, JSON.stringify(item));
+        }
+      } catch (error) {
+        console.error('Failed to process queue item:', error);
+        failed++;
+      }
+    }
+
+    return { successful, failed };
+  }
+
+  onConnectionChange(callback: (online: boolean) => void): () => void {
+    this.connectionListeners.push(callback);
+    
+    return () => {
+      const index = this.connectionListeners.indexOf(callback);
+      if (index > -1) {
+        this.connectionListeners.splice(index, 1);
+      }
+    };
+  }
+}
+
+// Create singleton instance
+export const offlineStorage = new OfflineStorage();
+
+// Helper functions
+export const isOnline = (): boolean => {
+  if (typeof window === 'undefined') return true;
+  return window.navigator.onLine;
+};
+
+export const onConnectionChange = (callback: (online: boolean) => void) => {
+  return offlineStorage.onConnectionChange(callback);
+};
+
+export const triggerManualSync = async () => {
+  console.log('Manual sync triggered');
+  const count = await offlineStorage.getQueueCount();
+  console.log(`${count} items in queue`);
+};
     });
   }
 }
 
-export const offlineStorage = new OfflineStorage();
+// Connection monitoring
+let isOnlineStatus = navigator.onLine;
+const connectionListeners: ((online: boolean) => void)[] = [];
 
-// Connection monitoring utilities
-export function isOnline(): boolean {
-  return navigator.onLine;
-}
+export const isOnline = (): boolean => isOnlineStatus;
 
-export function onConnectionChange(callback: (online: boolean) => void): () => void {
-  const handleOnline = () => callback(true);
-  const handleOffline = () => callback(false);
+export const onConnectionChange = (callback: (online: boolean) => void): (() => void) => {
+  connectionListeners.push(callback);
+  
+  const handleOnline = () => {
+    isOnlineStatus = true;
+    connectionListeners.forEach(cb => cb(true));
+  };
+  
+  const handleOffline = () => {
+    isOnlineStatus = false;
+    connectionListeners.forEach(cb => cb(false));
+  };
   
   window.addEventListener('online', handleOnline);
   window.addEventListener('offline', handleOffline);
@@ -112,14 +165,44 @@ export function onConnectionChange(callback: (online: boolean) => void): () => v
   return () => {
     window.removeEventListener('online', handleOnline);
     window.removeEventListener('offline', handleOffline);
+    const index = connectionListeners.indexOf(callback);
+    if (index > -1) {
+      connectionListeners.splice(index, 1);
+    }
   };
-}
+};
 
-// Manual sync trigger
-export async function triggerManualSync(): Promise<void> {
-  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-    navigator.serviceWorker.controller.postMessage({
-      type: 'SYNC_PENALTIES'
-    });
+// Manual sync function
+export const triggerManualSync = async (): Promise<void> => {
+  if (!isOnlineStatus) return;
+  
+  try {
+    const unsyncedPenalties = await offlineStorage.getUnsyncedPenalties();
+    
+    for (const item of unsyncedPenalties) {
+      try {
+        // Try to sync penalty to server
+        const response = await fetch('/api/sync-penalty', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item.penalty)
+        });
+        
+        if (response.ok) {
+          await offlineStorage.markAsSynced(item.id);
+        }
+      } catch (error) {
+        console.error('Failed to sync penalty:', error);
+        // Continue with other penalties
+      }
+    }
+  } catch (error) {
+    console.error('Manual sync failed:', error);
   }
-}
+};
+
+// Create singleton instance
+export const offlineStorage = new OfflineStorageService();
+
+// Initialize on import
+offlineStorage.init().catch(console.error);

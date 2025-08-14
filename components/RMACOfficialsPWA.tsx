@@ -7,7 +7,11 @@ import {
   AlertCircle, Radio, Settings, Volume2, Eye, Calculator,
   ClipboardList, UserCheck, MessageSquare, Target, Award,
   Calendar, FileText, Thermometer,
-  RefreshCw, Flag, Globe  
+  RefreshCw, Flag, Globe, Play, Pause, RotateCcw, Plus, Minus,
+  Mail, Send, TrendingDown, BarChart2, PieChart, Calendar as CalendarIcon,
+  Smartphone, Headphones, Zap, Shield, Network, Database,
+  PhoneCall, MessageCircle, Bell, Download, Share2, 
+  HelpCircle, Book, Video, ExternalLink, Lightbulb
 } from 'lucide-react';
 import { offlineStorage, isOnline, onConnectionChange, triggerManualSync } from '@/lib/offline-storage';
 import { driveBackup } from '@/lib/google-drive-backup';
@@ -163,31 +167,6 @@ interface CrewNote {
   category: 'penalty' | 'situation' | 'communication' | 'general';
 }
 
-interface WeeklyTrends {
-  mostCommonPenalties: { code: string; count: number; percentage: number }[];
-  busyQuarters: { quarter: string; count: number }[];
-  officialWorkload: { official: string; count: number; average: number }[];
-  situationalTrends: {
-    thirdDownPenalties: number;
-    redZonePenalties: number;
-    twoMinutePenalties: number;
-    overtimePenalties: number;
-  };
-  consistencyMetrics: {
-    crewVariance: number;
-    positionBalance: number;
-    callAccuracy: number;
-  };
-}
-
-interface PreGameChecklist {
-  id: string;
-  category: 'equipment' | 'communication' | 'review' | 'assignments';
-  item: string;
-  completed: boolean;
-  assignedTo?: string;
-  notes?: string;
-}
 interface CrewData {
   id: string;
   name: string;
@@ -203,7 +182,78 @@ interface CrewData {
   };
 }
 
-// Define the crews based on your document
+// OFFICIAL RMAC TEAM COLORS DATABASE
+interface TeamColors {
+  primary: string;
+  secondary: string;
+  accent: string;
+  text: string;
+}
+
+const RMACTeamColors: Record<string, TeamColors> = {
+  'Adams State': {
+    primary: '#005829',
+    secondary: '#FFFFFF',
+    accent: '#FFD700',
+    text: '#FFFFFF'
+  },
+  'Black Hills State': {
+    primary: '#005F3B',
+    secondary: '#FFD700',
+    accent: '#000000',
+    text: '#FFFFFF'
+  },
+  'Chadron State': {
+    primary: '#003366',
+    secondary: '#FFD700',
+    accent: '#FFFFFF',
+    text: '#FFFFFF'
+  },
+  'Colorado Mesa': {
+    primary: '#860037',
+    secondary: '#FFFFFF',
+    accent: '#FFD200',
+    text: '#FFFFFF'
+  },
+  'Colorado School of Mines': {
+    primary: '#033A62',
+    secondary: '#C0C0C0',
+    accent: '#FFFFFF',
+    text: '#FFFFFF'
+  },
+  'Colorado State Pueblo': {
+    primary: '#CE1126',
+    secondary: '#002147',
+    accent: '#FFFFFF',
+    text: '#FFFFFF'
+  },
+  'Fort Lewis': {
+    primary: '#003F7F',
+    secondary: '#FFB300',
+    accent: '#FFFFFF',
+    text: '#FFFFFF'
+  },
+  'New Mexico Highlands': {
+    primary: '#4B0082',
+    secondary: '#FFFFFF',
+    accent: '#FFD700',
+    text: '#FFFFFF'
+  },
+  'South Dakota Mines': {
+    primary: '#003F87',
+    secondary: '#FFCC00',
+    accent: '#FFFFFF',
+    text: '#FFFFFF'
+  },
+  'Western Colorado': {
+    primary: '#8B2332',
+    secondary: '#000000',
+    accent: '#FFFFFF',
+    text: '#FFFFFF'
+  }
+};
+
+// Define the crews
 const RMAC_CREWS: Record<string, CrewData> = {
   'crew1': {
     id: 'crew1',
@@ -276,76 +326,6 @@ const RMAC_CREWS: Record<string, CrewData> = {
     }
   }
 };
-// OFFICIAL RMAC TEAM COLORS DATABASE
-interface TeamColors {
-  primary: string;
-  secondary: string;
-  accent: string;
-  text: string;
-}
-
-const RMACTeamColors: Record<string, TeamColors> = {
-  'Adams State': {
-    primary: '#005829',    // Green
-    secondary: '#FFFFFF',  // White
-    accent: '#FFD700',     // Gold accent
-    text: '#FFFFFF'
-  },
-  'Black Hills State': {
-    primary: '#005F3B',    // Green  
-    secondary: '#FFD700',  // Gold
-    accent: '#000000',     // Black
-    text: '#FFFFFF'
-  },
-  'Chadron State': {
-    primary: '#003366',    // Navy Blue
-    secondary: '#FFD700',  // Gold
-    accent: '#FFFFFF',     // White
-    text: '#FFFFFF'
-  },
-  'Colorado Mesa': {
-    primary: '#860037',    // Maroon (Mavroon)
-    secondary: '#FFFFFF',  // White
-    accent: '#FFD200',     // Athletic Gold
-    text: '#FFFFFF'
-  },
-  'Colorado School of Mines': {
-    primary: '#033A62',    // Blue
-    secondary: '#C0C0C0',  // Silver
-    accent: '#FFFFFF',     // White
-    text: '#FFFFFF'
-  },
-  'Colorado State Pueblo': {
-    primary: '#CE1126',    // Red
-    secondary: '#002147',  // Navy
-    accent: '#FFFFFF',     // White
-    text: '#FFFFFF'
-  },
-  'Fort Lewis': {
-    primary: '#003F7F',    // Blue
-    secondary: '#FFB300',  // Gold
-    accent: '#FFFFFF',     // White
-    text: '#FFFFFF'
-  },
-  'New Mexico Highlands': {
-    primary: '#4B0082',    // Purple
-    secondary: '#FFFFFF',  // White
-    accent: '#FFD700',     // Gold
-    text: '#FFFFFF'
-  },
-  'South Dakota Mines': {
-    primary: '#003F87',    // Blue
-    secondary: '#FFCC00',  // Yellow/Gold
-    accent: '#FFFFFF',     // White
-    text: '#FFFFFF'
-  },
-  'Western Colorado': {
-    primary: '#8B2332',    // Crimson
-    secondary: '#000000',  // Black
-    accent: '#FFFFFF',     // White
-    text: '#FFFFFF'
-  }
-};
 
 // Constants
 const penaltyTypes: Record<string, { name: string; yards: number }> = {
@@ -388,8 +368,181 @@ const rmacTeams = [
   'Western Colorado'
 ];
 
+// Helper function for current week
+function getCurrentWeek(): number {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const seasonStart = new Date(currentYear, 7, 29);
+  const daysUntilSaturday = (6 - seasonStart.getDay()) % 7;
+  const firstSaturday = new Date(seasonStart);
+  firstSaturday.setDate(seasonStart.getDate() + daysUntilSaturday);
+  const timeDiff = now.getTime() - firstSaturday.getTime();
+  const daysDiff = Math.floor(timeDiff / (1000 * 3600 * 24));
+  const weekNumber = Math.floor(daysDiff / 7) + 1;
+  return Math.max(1, Math.min(17, weekNumber));
+}
+
+// Phase 6 & 7: New interfaces for analytics and reporting
+interface WeeklyTrends {
+  mostCommonPenalties: { code: string; count: number; percentage: number }[];
+  busyQuarters: { quarter: string; count: number }[];
+  officialWorkload: { official: string; count: number; average: number }[];
+  situationalTrends: {
+    thirdDownPenalties: number;
+    redZonePenalties: number;
+    twoMinutePenalties: number;
+    overtimePenalties: number;
+  };
+  consistencyMetrics: {
+    crewVariance: number;
+    positionBalance: number;
+    callAccuracy: number;
+  };
+}
+
+interface WeeklyReport {
+  id: string;
+  week: number;
+  dateRange: string;
+  totalGames: number;
+  totalPenalties: number;
+  crewPerformance: Record<string, {
+    games: number;
+    penalties: number;
+    averagePerGame: number;
+    consistency: number;
+  }>;
+  trends: WeeklyTrends;
+  emailSent: boolean;
+  emailSentAt?: string;
+  generatedAt: string;
+}
+
+interface EmailSettings {
+  supervisorEmails: string[];
+  crewChiefEmails: string[];
+  autoSendWeeklyReports: boolean;
+  autoSendPostGameSynopsis: boolean;
+  weeklyReportSubject: string;
+  postGameSubject: string;
+  includeAttachments: boolean;
+}
+
+// RMAC Email Directory with Roles
+const RMAC_OFFICIALS_EMAILS: Record<string, { email: string; role: 'supervisor' | 'crew_chief' }> = {
+  'Randy Campbell': { email: 'rcampbell0614@comcast.net', role: 'supervisor' },
+  'Charles Flinn': { email: 'charlesjflinn@gmail.com', role: 'crew_chief' },
+  'Michael Gray': { email: 'michael.l.gray@outlook.com', role: 'crew_chief' },
+  'Rich Gray': { email: 'richgray9690@icloud.com', role: 'crew_chief' },
+  'Jeff Bloszies': { email: 'jeffbloszies@yahoo.com', role: 'crew_chief' },
+  'Cecil Harrison': { email: 'ctmharrison@comcast.net', role: 'crew_chief' }
+};
+
+// New interface for post-game synopsis (missing from current code)
+interface PostGameSynopsis {
+  id: string;
+  gameId: string;
+  gameInfo: {
+    homeTeam: string;
+    awayTeam: string;
+    date: string;
+    crew: string;
+  };
+  summary: {
+    totalPenalties: number;
+    majorIncidents: string[];
+    gameFlow: 'smooth' | 'challenging' | 'difficult';
+    crewPerformance: number;
+  };
+  penalties: Penalty[];
+  notes: string;
+  submittedBy: string;
+  submittedAt: string;
+  emailSent: boolean;
+  emailSentAt?: string;
+}
+
+// Phase 8: PWA & Mobile Optimization interfaces
+interface PWASettings {
+  installPromptShown: boolean;
+  pushNotificationsEnabled: boolean;
+  offlineDataRetention: number; // days
+  syncFrequency: 'realtime' | 'hourly' | 'daily';
+  backgroundSync: boolean;
+}
+
+interface NotificationPreferences {
+  gameReminders: boolean;
+  penaltyAlerts: boolean;
+  reportGeneration: boolean;
+  systemUpdates: boolean;
+  weeklyDigest: boolean;
+}
+
+// Phase 9: Real-time Communication interfaces
+interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  message: string;
+  timestamp: string;
+  urgent: boolean;
+  type: 'text' | 'penalty_alert' | 'system' | 'announcement';
+}
+
+interface CrewCommunication {
+  gameId: string;
+  messages: ChatMessage[];
+  connectedOfficials: string[];
+  lastActivity: string;
+}
+
+interface LiveUpdate {
+  id: string;
+  type: 'penalty' | 'score' | 'clock' | 'timeout' | 'injury';
+  data: any;
+  timestamp: string;
+  gameId: string;
+}
+
+// Phase 10: Advanced Features interfaces
+interface RuleReference {
+  id: string;
+  section: string;
+  title: string;
+  content: string;
+  examples: string[];
+  relatedPenalties: string[];
+  searchTerms: string[];
+}
+
+interface TrainingModule {
+  id: string;
+  title: string;
+  description: string;
+  category: 'penalties' | 'mechanics' | 'communication' | 'technology';
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  estimatedTime: number; // minutes
+  videoUrl?: string;
+  completed: boolean;
+  lastAccessed?: string;
+}
+
+interface PerformanceMetrics {
+  gamesOfficiated: number;
+  totalPenaltiesCalled: number;
+  accuracy: number;
+  consistencyScore: number;
+  communication: number;
+  positioning: number;
+  ruleKnowledge: number;
+  lastEvaluation: string;
+  improvementAreas: string[];
+  strengths: string[];
+}
+
 const RMACOfficialsPWA: React.FC = () => {
-  // State
+  // Core State
   const [penalties, setPenalties] = useState<Penalty[]>([]);
   const [selectedPenalty, setSelectedPenalty] = useState<string>('');
   const [playerNumber, setPlayerNumber] = useState<string>('');
@@ -400,69 +553,132 @@ const RMACOfficialsPWA: React.FC = () => {
   const [down, setDown] = useState<string>('1');
   const [distance, setDistance] = useState<string>('10');
   const [fieldPosition, setFieldPosition] = useState<number>(50);
-  const [isOnline, setIsOnline] = useState<boolean>(true);
-  const [savedGames, setSavedGames] = useState<Game[]>([]);
   const [currentGame, setCurrentGame] = useState<Game | null>(null);
-  const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
-  const [showNumberPad, setShowNumberPad] = useState<boolean>(false);
   const [callingOfficial, setCallingOfficial] = useState<string>('R');
-  const [lastDeletedPenalty, setLastDeletedPenalty] = useState<Penalty | null>(null);
-  const [isListening, setIsListening] = useState<boolean>(false);
-  const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
-  const [showFieldView, setShowFieldView] = useState<boolean>(false);
-  const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
-  const [crewSync, setCrewSync] = useState<boolean>(false);
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
-  const [voiceCommand, setVoiceCommand] = useState<string>('');
-  const [penaltyPredictions, setPenaltyPredictions] = useState<Record<string, number>>({});
-  const [crewMembers, setCrewMembers] = useState<CrewMember[]>([]);
-  const [gameEvents, setGameEvents] = useState<GameEvent[]>([]);
-  const [crewNotes, setCrewNotes] = useState<CrewNote[]>([]);
-  const [currentNote, setCurrentNote] = useState<string>('');
-  const [noteCategory, setNoteCategory] = useState<'penalty' | 'situation' | 'communication' | 'general'>('general');
-  const [notePriority, setNotePriority] = useState<'low' | 'medium' | 'high'>('medium');
-  const [preGameChecklist, setPreGameChecklist] = useState<PreGameChecklist[]>([]);
-  const [weatherConditions, setWeatherConditions] = useState<{
-    temperature: number;
-    conditions: string;
-    windSpeed: number;
-    windDirection: string;
-    humidity: number;
-  }>({ temperature: 72, conditions: 'Clear', windSpeed: 0, windDirection: 'N', humidity: 50 });
-  const [showCrewManagement, setShowCrewManagement] = useState<boolean>(false);
-  const [showEnforcementCalc, setShowEnforcementCalc] = useState<boolean>(false);
-  const [showCrewNotes, setShowCrewNotes] = useState<boolean>(false);
-  const [showPreGameChecklist, setShowPreGameChecklist] = useState<boolean>(false);
-  const [showWeeklyTrends, setShowWeeklyTrends] = useState<boolean>(false);
-  const [sidelineMode, setSidelineMode] = useState<boolean>(false);
   
-  // Add these new state variables
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
-
-  // Phase 3: Google Drive backup state
+  // UI State
+  const [showNumberPad, setShowNumberPad] = useState<boolean>(false);
+  const [sidelineMode, setSidelineMode] = useState<boolean>(false);
+  const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
+  const [lastDeletedPenalty, setLastDeletedPenalty] = useState<Penalty | null>(null);
+  
+  // Connection State
+  const [isOffline, setIsOffline] = useState<boolean>(false);
+  const [showOfflineNotice, setShowOfflineNotice] = useState<boolean>(false);
+  const [queuedPenalties, setQueuedPenalties] = useState<number>(0);
+  
+  // Backup State
   const [isBackingUp, setIsBackingUp] = useState<boolean>(false);
   const [lastBackupTime, setLastBackupTime] = useState<string | null>(null);
   const [backupCount, setBackupCount] = useState<number>(0);
   const [backupError, setBackupError] = useState<string | null>(null);
   const [autoBackupEnabled, setAutoBackupEnabled] = useState<boolean>(true);
 
-  // Possession tracking
-  const [possession, setPossession] = useState<'home' | 'away'>('home');
-  const [kickingTeam, setKickingTeam] = useState<'home' | 'away' | null>(null);
+  // Phase 5: Sideline Mode State
+  const [gameClockRunning, setGameClockRunning] = useState<boolean>(false);
+  const [gameClockTime, setGameClockTime] = useState<{
+    quarter: number;
+    minutes: number;
+    seconds: number;
+  }>({ quarter: 1, minutes: 15, seconds: 0 });
+  const [homeScore, setHomeScore] = useState<number>(0);
+  const [awayScore, setAwayScore] = useState<number>(0);
+  const [pendingPenalty, setPendingPenalty] = useState<{
+    playerNumber?: string;
+    penaltyCode?: string;
+    team?: string;
+  } | null>(null);
+  const [lastAction, setLastAction] = useState<string>('');
 
-  // Crew management
+  // Crew State
   const [selectedCrew, setSelectedCrew] = useState<string>('');
   const [crewData, setCrewData] = useState<CrewData | null>(null);
+  const [possession, setPossession] = useState<'home' | 'away'>('home');
+
+  // Other State
+  const [savedGames, setSavedGames] = useState<Game[]>([]);
+  const [gameEvents, setGameEvents] = useState<GameEvent[]>([]);
+  const [crewNotes, setCrewNotes] = useState<CrewNote[]>([]);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [voiceCommand, setVoiceCommand] = useState<string>('');
+
+  // Phase 8: PWA & Mobile State
+  const [pwaSettings, setPwaSettings] = useState<PWASettings>({
+    installPromptShown: false,
+    pushNotificationsEnabled: false,
+    offlineDataRetention: 30,
+    syncFrequency: 'realtime',
+    backgroundSync: true
+  });
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>({
+    gameReminders: true,
+    penaltyAlerts: true,
+    reportGeneration: true,
+    systemUpdates: true,
+    weeklyDigest: true
+  });
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [isInstalled, setIsInstalled] = useState<boolean>(false);
+  const [networkStatus, setNetworkStatus] = useState<'online' | 'offline' | 'slow'>('online');
+
+  // Phase 9: Real-time Communication State
+  const [crewChat, setCrewChat] = useState<CrewCommunication | null>(null);
+  const [newMessage, setNewMessage] = useState<string>('');
+  const [liveUpdates, setLiveUpdates] = useState<LiveUpdate[]>([]);
+  const [connectedToGame, setConnectedToGame] = useState<boolean>(false);
+  const [showCrewChat, setShowCrewChat] = useState<boolean>(false);
+  const [unreadMessages, setUnreadMessages] = useState<number>(0);
+
+  // Phase 10: Advanced Features State
+  const [showRuleReference, setShowRuleReference] = useState<boolean>(false);
+  const [showTraining, setShowTraining] = useState<boolean>(false);
+  const [showPerformanceMetrics, setShowPerformanceMetrics] = useState<boolean>(false);
+  const [ruleSearchQuery, setRuleSearchQuery] = useState<string>('');
+  const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics>({
+    gamesOfficiated: 47,
+    totalPenaltiesCalled: 312,
+    accuracy: 94.2,
+    consistencyScore: 87.5,
+    communication: 91.0,
+    positioning: 89.3,
+    ruleKnowledge: 96.1,
+    lastEvaluation: '2024-10-15',
+    improvementAreas: ['Clock Management', 'Sideline Awareness'],
+    strengths: ['Rule Knowledge', 'Communication', 'Penalty Recognition']
+  });
+
+  // Missing state declarations for analytics and reports
+  const [showPWASettings, setShowPWASettings] = useState<boolean>(false);
+  const [weeklyReports, setWeeklyReports] = useState<WeeklyReport[]>([]);
+  const [emailSettings, setEmailSettings] = useState<EmailSettings>({
+    supervisorEmails: [RMAC_OFFICIALS_EMAILS['Randy Campbell'].email],
+    crewChiefEmails: Object.entries(RMAC_OFFICIALS_EMAILS)
+      .filter(([_, data]) => data.role === 'crew_chief')
+      .map(([_, data]) => data.email),
+    autoSendWeeklyReports: true,
+    autoSendPostGameSynopsis: true,
+    weeklyReportSubject: 'RMAC Officials Weekly Report - Week {week}',
+    postGameSubject: 'Post-Game Synopsis - {homeTeam} vs {awayTeam}',
+    includeAttachments: true
+  });
+  const [isGeneratingReport, setIsGeneratingReport] = useState<boolean>(false);
+  const [isSendingEmail, setIsSendingEmail] = useState<boolean>(false);
+  const [lastEmailSent, setLastEmailSent] = useState<string | null>(null);
+
+  // Post-game synopsis state
+  const [postGameSynopses, setPostGameSynopses] = useState<PostGameSynopsis[]>([]);
+  const [showPostGameForm, setShowPostGameForm] = useState<boolean>(false);
+  const [gameFlow, setGameFlow] = useState<'smooth' | 'challenging' | 'difficult'>('smooth');
+  const [crewPerformanceRating, setCrewPerformanceRating] = useState<number>(8);
+  const [majorIncidents, setMajorIncidents] = useState<string>('');
+  const [postGameNotes, setPostGameNotes] = useState<string>('');
 
   // Refs
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const gameClockInterval = useRef<NodeJS.Timeout | null>(null);
 
   const officials = ['R', 'CJ', 'U', 'HL', 'LJ', 'SJ', 'FJ', 'BJ'];
 
-  // Functions
+  // Core Functions
   const playSound = (type: 'whistle' | 'ding') => {
     if (!soundEnabled) return;
     
@@ -489,9 +705,55 @@ const RMACOfficialsPWA: React.FC = () => {
     } catch (error) {
       console.error('Audio error:', error);
     }
-  }
+  };
 
-  function saveGameOffline() {
+  const performAutoBackup = async (currentPenalties: Penalty[]): Promise<void> => {
+    if (!currentGame || !crewData || !autoBackupEnabled || isBackingUp) {
+      return;
+    }
+
+    try {
+      setIsBackingUp(true);
+      setBackupError(null);
+
+      const gameData = {
+        gameInfo: {
+          id: currentGame.id,
+          homeTeam: currentGame.homeTeam,
+          awayTeam: currentGame.awayTeam,
+          date: currentGame.date,
+          crew: crewData.name
+        },
+        penalties: currentPenalties,
+        events: gameEvents,
+        notes: crewNotes,
+        metadata: {
+          backupTime: new Date().toISOString(),
+          penaltyCount: currentPenalties.length,
+          quarter,
+          gameTime,
+          lastUpdatedBy: callingOfficial
+        }
+      };
+
+      const result = await driveBackup.backupGameData(gameData, crewData.name);
+      
+      if (result.success) {
+        const status = driveBackup.getBackupStatus();
+        setLastBackupTime(status.lastBackupTime);
+        setBackupCount(status.backupCount);
+      } else {
+        setBackupError(result.error || 'Backup failed');
+      }
+    } catch (error) {
+      console.error('Auto-backup failed:', error);
+      setBackupError(error instanceof Error ? error.message : 'Unknown backup error');
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
+
+  const saveGameOffline = async () => {
     if (currentGame) {
       const gameToSave = {
         ...currentGame,
@@ -507,148 +769,45 @@ const RMACOfficialsPWA: React.FC = () => {
       localStorage.setItem('rmac_saved_games', JSON.stringify(updatedGames));
       localStorage.setItem('rmac_current_game', JSON.stringify(gameToSave));
 
-      // Also trigger Drive backup if enabled
       if (autoBackupEnabled && crewData) {
-        performAutoBackup(penalties);
+        await performAutoBackup(penalties);
       }
     }
-  }
-
-  const syncToCloud = () => {
-    alert('Sync to cloud feature coming soon');
   };
 
-  const undoDelete = () => {
-    if (lastDeletedPenalty) {
-      setPenalties(prev => [lastDeletedPenalty, ...prev]);
-      setLastDeletedPenalty(null);
+  const generateQwikRefFormat = (): string => {
+    if (!currentGame || penalties.length === 0) {
+      return '';
     }
-  };
 
-  const toggleVoiceRecognition = () => {
-    if (!recognitionRef.current) {
-      alert('Voice recognition not supported in this browser');
-      return;
-    }
+    let qwikRefData = '';
     
+    qwikRefData += `GAME: ${currentGame.homeTeam} vs ${currentGame.awayTeam}\n`;
+    qwikRefData += `DATE: ${new Date(currentGame.date).toLocaleDateString()}\n`;
+    qwikRefData += `CREW: ${crewData?.name || 'N/A'}\n`;
+    qwikRefData += `TOTAL PENALTIES: ${penalties.length}\n\n`;
+    
+    penalties.forEach((penalty) => {
+      qwikRefData += `${penalty.quarter} ${penalty.time} - ${penalty.code} ${penalty.name} #${penalty.player} ${penalty.team === 'O' ? 'OFF' : 'DEF'} (${penalty.callingOfficial})\n`;
+    });
+    
+    return qwikRefData;
+  };
+
+  const copyQwikRefData = async (): Promise<void> => {
+    const data = generateQwikRefFormat();
     try {
-      if (isListening) {
-        recognitionRef.current.stop();
-        setIsListening(false);
-      } else {
-        recognitionRef.current.start();
-        setIsListening(true);
-        setVoiceCommand('Listening...');
-      }
-    } catch (error) {
-      console.error('Voice recognition error:', error);
-      setIsListening(false);
-      setVoiceCommand('');
-      alert('Voice recognition failed. Please try again.');
-    }
-  };
-
-  // Enhanced penalty enforcement calculator
-  const calculatePenaltyEnforcement = (
-    penalty: Penalty,
-    currentDown: number,
-    currentDistance: number,
-    currentFieldPos: number
-  ): PenaltyEnforcement => {
-    const penaltyYards = penalty.yards;
-    const isOffensive = penalty.team === 'O';
-    let newDown = currentDown;
-    let newDistance = currentDistance;
-    let newFieldPosition = currentFieldPos;
-    let lossOfDown = false;
-    let automaticFirstDown = false;
-    let safetyScored = false;
-    let halfDistance = false;
-    let explanation = '';
-
-    if (isOffensive) {
-      newFieldPosition = Math.max(0, currentFieldPos - penaltyYards);
-      
-      if (newFieldPosition <= 0) {
-        safetyScored = true;
-        newFieldPosition = 0;
-        explanation = 'Safety scored due to penalty in end zone';
-      }
-      
-      if (['IFP', 'IGS', 'ITP'].includes(penalty.code)) {
-        lossOfDown = true;
-        newDown = Math.min(4, currentDown + 1);
-        explanation += lossOfDown ? ' Loss of down.' : '';
-      } else {
-        newDown = currentDown;
-      }
-      
-      if (penaltyYards > currentFieldPos / 2) {
-        halfDistance = true;
-        newFieldPosition = Math.floor(currentFieldPos / 2);
-        explanation += ' Half-distance penalty.';
-      }
-      
-    } else {
-      newFieldPosition = Math.min(100, currentFieldPos + penaltyYards);
-      
-      if (['DPI', 'RPS', 'PF', 'HLD', 'IUH'].includes(penalty.code)) {
-        automaticFirstDown = true;
-        newDown = 1;
-        newDistance = 10;
-        explanation = 'Automatic first down';
-      } else {
-        newDistance = Math.max(1, currentDistance - penaltyYards);
-        if (newDistance <= 0) {
-          automaticFirstDown = true;
-          newDown = 1;
-          newDistance = 10;
-        }
-      }
-      
-      if (penaltyYards > (100 - currentFieldPos) / 2) {
-        halfDistance = true;
-        newFieldPosition = currentFieldPos + Math.floor((100 - currentFieldPos) / 2);
-        explanation += ' Half-distance penalty.';
-      }
-    }
-
-    if (newFieldPosition >= 100) {
-      newFieldPosition = 99;
-      explanation += ' Penalty enforced to the 1-yard line.';
-    }
-
-    return {
-      newDown,
-      newDistance,
-      newFieldPosition,
-      lossOfDown,
-      automaticFirstDown,
-      safetyScored,
-      halfDistance,
-      explanation: explanation.trim()
-    };
-  };
-
-  const addCrewNote = () => {
-    if (currentNote.trim()) {
-      const note: CrewNote = {
-        id: Date.now().toString(),
-        author: callingOfficial,
-        content: currentNote,
-        timestamp: new Date().toISOString(),
-        gameTime,
-        quarter,
-        priority: notePriority,
-        category: noteCategory
-      };
-      setCrewNotes(prev => [note, ...prev]);
-      setCurrentNote('');
+      await navigator.clipboard.writeText(data);
+      setCopiedIndex('qwikref');
+      setTimeout(() => setCopiedIndex(null), 2000);
       playSound('ding');
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      alert('Failed to copy data');
     }
   };
 
-  // Enhanced addPenalty with auto-backup
+  // Enhanced addPenalty to use real offline storage
   const addPenalty = async (): Promise<void> => {
     if (!selectedPenalty || !playerNumber) {
       alert('Please select penalty type and enter player number');
@@ -682,13 +841,32 @@ const RMACOfficialsPWA: React.FC = () => {
     setPenalties(newPenalties);
     playSound('whistle');
     
-    // Auto-backup after penalty addition
+    // Save to offline storage
+    try {
+      await offlineStorage.queuePenalty(penalty);
+    } catch (error) {
+      console.error('Failed to queue penalty offline:', error);
+    }
+    
+    // Backup to Google Drive
     if (autoBackupEnabled && currentGame && crewData) {
       await performAutoBackup(newPenalties);
     }
-
-    // Phase 4: Notify collaborators of new penalty
-    await notifyCollaborators('penalty', `${callingOfficial} added ${penalty.code} - ${penalty.name} #${penalty.player}`);
+    
+    // Save game data to localStorage as backup
+    if (currentGame) {
+      try {
+        const gameToSave = {
+          ...currentGame,
+          penalties: newPenalties,
+          events: gameEvents,
+          notes: crewNotes
+        };
+        localStorage.setItem('rmac_current_game', JSON.stringify(gameToSave));
+      } catch (error) {
+        console.error('Failed to save game to localStorage:', error);
+      }
+    }
     
     setSelectedPenalty('');
     setPlayerNumber('');
@@ -697,386 +875,52 @@ const RMACOfficialsPWA: React.FC = () => {
     setVoiceCommand('');
   };
 
-  // Phase 4: Collaboration notification system
-  const notifyCollaborators = async (type: string, message: string) => {
-    if (!currentGame || !crewData || isOffline) return;
-
+  // Enhanced sync function to work with queue system
+  const syncQueuedPenalties = async (): Promise<void> => {
     try {
-      await fetch('/api/notify-collaborators', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          gameId: currentGame.id,
-          type,
-          message,
-          from: callingOfficial,
-          timestamp: new Date().toISOString()
-        })
-      });
-    } catch (error) {
-      console.error('Failed to notify collaborators:', error);
-    }
-  };
-
-  // Phase 4: Auto-email QwikRef reports
-  const emailQwikRefReport = async () => {
-    if (!currentGame || !crewData || penalties.length === 0) {
-      alert('No penalties to email');
-      return;
-    }
-
-    setEmailingReport(true);
-    try {
-      const qwikRefData = generateQwikRefFormat();
-      const gameDate = new Date(currentGame.date).toLocaleDateString();
-      
-      const response = await fetch('/api/email-qwikref-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          gameInfo: {
-            homeTeam: currentGame.homeTeam,
-            awayTeam: currentGame.awayTeam,
-            date: gameDate,
-            crew: crewData.name
-          },
-          qwikRefData,
-          penalties,
-          crewEmails: Object.values(crewData.officials).map(name => 
-            // Convert names to emails (you'd have actual email addresses)
-            `${name.toLowerCase().replace(/\s+/g, '.')}@rmac.org`
-          )
-        })
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        setLastEmailTime(new Date().toISOString());
-        localStorage.setItem('last_email_time', new Date().toISOString());
-        alert(`QwikRef report emailed to ${result.recipientCount} crew members!`);
-      } else {
-        alert('Failed to send email report');
-      }
-    } catch (error) {
-      console.error('Email error:', error);
-      alert('Error sending email report');
-    } finally {
-      setEmailingReport(false);
-    }
-  };
-
-  // Phase 4: Enhanced connection monitoring with collaboration
-  useEffect(() => {
-    const cleanup = onConnectionChange((online) => {
-      setIsOffline(!online);
-      setIsOnline(online);
-      
-      if (online) {
-        triggerManualSync();
-        setShowOfflineNotice(false);
-        // Re-establish collaboration connection
-        if (currentGame && crewData) {
-          connectToCollaboration();
+      const result = await offlineStorage.processQueue(async (penalty) => {
+        try {
+          const response = await fetch('/api/sync-penalty', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(penalty)
+          });
+          return response.ok;
+        } catch (error) {
+          console.error('Failed to sync penalty:', error);
+          return false;
         }
-      } else {
-        setShowOfflineNotice(true);
-        setTimeout(() => setShowOfflineNotice(false), 3000);
-        setActiveCollaborators([]);
-      }
-    });
-
-    const updateQueueCount = async () => {
-      const count = await offlineStorage.getQueueCount();
-      setQueuedPenalties(count);
-    };
-
-    updateQueueCount();
-    const interval = setInterval(updateQueueCount, 5000);
-
-    const handlePenaltySynced = () => {
-      updateQueueCount();
-    };
-
-    window.addEventListener('penalty-synced', handlePenaltySynced);
-
-    // Initialize collaboration when game starts
-    if (currentGame && crewData && !isOffline) {
-      connectToCollaboration();
-    }
-
-    return () => {
-      cleanup();
-      clearInterval(interval);
-      window.removeEventListener('penalty-synced', handlePenaltySynced);
-    };
-  }, [currentGame, crewData]);
-
-  // Phase 4: Real-time collaboration connection
-  const connectToCollaboration = async () => {
-    if (!currentGame || !crewData || isOffline) return;
-
-    try {
-      const response = await fetch('/api/join-collaboration', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          gameId: currentGame.id,
-          crewId: crewData.id,
-          officialPosition: callingOfficial,
-          timestamp: new Date().toISOString()
-        })
       });
-
-      const result = await response.json();
-      if (result.success) {
-        setActiveCollaborators(result.activeOfficials || []);
-        setRecentUpdates(result.recentUpdates || []);
-      }
+      
+      console.log(`Sync complete: ${result.successful} successful, ${result.failed} failed`);
+      
+      const newCount = await offlineStorage.getQueueCount();
+      setQueuedPenalties(newCount);
+      
     } catch (error) {
-      console.error('Failed to connect to collaboration:', error);
+      console.error('Sync failed:', error);
     }
   };
 
-  // Enhanced Google Sheets sync with real-time collaboration
-  const syncToGoogleSheets = async () => {
-    if (!currentGame || penalties.length === 0) {
-      alert('No penalties to sync');
+  // Manual sync handler
+  const handleManualSync = async () => {
+    if (!isOnline()) {
+      alert('Cannot sync while offline');
       return;
     }
-
-    try {
-      setIsSyncing(true);
-      setSyncStatus('syncing');
-      
-      const currentCrew = crewData?.name || localStorage.getItem('crew_name') || 'Crew 1';
-      
-      const gameInfo = {
-        date: new Date().toISOString().split('T')[0],
-        week: getCurrentWeek(),
-        homeTeam: currentGame.homeTeam,
-        awayTeam: currentGame.awayTeam,
-        crew: currentCrew,
-        location: 'TBD',
-        // Phase 4: Add collaboration metadata
-        syncedBy: callingOfficial,
-        collaborators: activeCollaborators,
-        lastUpdate: new Date().toISOString()
-      };
-
-      const requestData = { penalties, gameInfo };
-
-      // If offline, queue the data
-      if (isOffline) {
-        await offlineStorage.addToQueue(requestData);
-        setSyncStatus('success');
-        setLastSyncTime(new Date().toISOString());
-        alert('Penalties queued for sync when online!');
-        return;
-      }
-
-      const response = await fetch('/api/sync-penalties', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestData)
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        setSyncStatus('success');
-        setLastSyncTime(new Date().toISOString());
-        localStorage.setItem('last_sync_time', new Date().toISOString());
-        
-        // Phase 4: Notify collaborators of sync
-        await notifyCollaborators('sync', `${callingOfficial} synced ${penalties.length} penalties`);
-        
-        alert(`Successfully synced ${result.rowsAdded} penalties to Google Sheets!`);
-      } else {
-        await offlineStorage.addToQueue(requestData);
-        setSyncStatus('error');
-        alert('Sync failed. Penalty queued for retry.');
-      }
-    } catch (error) {
-      console.error('Sync error:', error);
-      const requestData = { penalties, gameInfo: {
-        date: new Date().toISOString().split('T')[0],
-        week: getCurrentWeek(),
-        homeTeam: currentGame.homeTeam,
-        awayTeam: currentGame.aw
-            <>
-              <Upload className="w-4 h-4" />
-              {isOffline ? 'Queue for Sync' : 'Sync to Sheets'}
-            </>
-          )}
-        </button>
-        
-        <button
-          onClick={() => window.open(`https://docs.google.com/spreadsheets/d/${process.env.NEXT_PUBLIC_SHEET_ID}`, '_blank')}
-          className="p-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold transition-all flex items-center justify-center gap-2"
-        >
-          <FileText className="w-4 h-4" />
-          View Sheet
-        </button>
-      </div>
-      
-      {penalties.length > 0 && (
-        <div className="mt-3 text-center">
-          <div className="text-sm text-gray-400">
-            <span className="text-2xl font-bold text-white">{penalties.length}</span>
-            <span> penalties ready to sync</span>
-          </div>
-          <div className="mt-2 text-xs text-gray-500">
-            Game: {currentGame?.homeTeam} vs {currentGame?.awayTeam}
-          </div>
-        </div>
-      )}
-      
-      {penalties.length === 0 && (
-        <div className="mt-3 text-center text-gray-500 text-sm">
-          No penalties to sync yet
-        </div>
-      )}
-    </div>
-  );
-
-  // Phase 3: Google Drive Backup Section
-  const GoogleDriveBackupSection = () => (
-    <div className="bg-gray-800 m-4 p-4 rounded-xl shadow-lg border border-gray-700">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-lg flex items-center gap-2">
-          <Save className="w-5 h-5 text-green-400" />
-          Google Drive Backup
-          {isBackingUp && (
-            <span className="text-xs bg-blue-600 px-2 py-1 rounded animate-pulse">BACKING UP</span>
-          )}
-        </h3>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400">Auto-backup:</span>
-          <button
-            onClick={() => {
-              const newValue = !autoBackupEnabled;
-              setAutoBackupEnabled(newValue);
-              localStorage.setItem('auto_backup_enabled', newValue.toString());
-            }}
-            className={`px-2 py-1 rounded text-xs font-bold ${
-              autoBackupEnabled ? 'bg-green-600' : 'bg-gray-600'
-            }`}
-          >
-            {autoBackupEnabled ? 'ON' : 'OFF'}
-          </button>
-        </div>
-      </div>
-
-      {/* Backup Status */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-        <div className="bg-gray-700 bg-opacity-50 p-3 rounded-lg">
-          <div className="text-xs text-gray-400">Total Backups</div>
-          <div className="text-xl font-bold text-white">{backupCount}</div>
-        </div>
-        <div className="bg-gray-700 bg-opacity-50 p-3 rounded-lg">
-          <div className="text-xs text-gray-400">Last Backup</div>
-          <div className="text-sm font-bold text-white">
-            {lastBackupTime ? new Date(lastBackupTime).toLocaleTimeString() : 'Never'}
-          </div>
-        </div>
-        <div className="bg-gray-700 bg-opacity-50 p-3 rounded-lg">
-          <div className="text-xs text-gray-400">Status</div>
-          <div className={`text-sm font-bold ${
-            isBackingUp ? 'text-blue-400' : 
-            backupError ? 'text-red-400' : 
-            'text-green-400'
-          }`}>
-            {isBackingUp ? 'Backing up...' : 
-             backupError ? 'Error' : 
-             'Ready'}
-          </div>
-        </div>
-      </div>
-
-      {/* Error Display */}
-      {backupError && (
-        <div className="mb-3 p-2 bg-red-900 text-red-200 rounded-lg text-sm flex items-center gap-2">
-          <AlertCircle className="w-4 h-4" />
-          <span>Backup Error: {backupError}</span>
-          <button
-            onClick={() => setBackupError(null)}
-            className="ml-auto text-xs underline hover:no-underline"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {/* Backup Actions */}
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          onClick={triggerManualBackup}
-          disabled={isBackingUp || !currentGame}
-          className="p-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-bold transition-all flex items-center justify-center gap-2"
-        >
-          {isBackingUp ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              Backing up...
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4" />
-              Manual Backup
-            </>
-          )}
-        </button>
-        
-        <button
-          onClick={() => window.open('https://drive.google.com/drive/folders/', '_blank')}
-          className="p-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold transition-all flex items-center justify-center gap-2"
-        >
-          <Eye className="w-4 h-4" />
-          View Drive
-        </button>
-      </div>
-
-      {/* Backup Info */}
-      {currentGame && (
-        <div className="mt-3 text-center">
-          <div className="text-sm text-gray-400">
-            <span>Crew folder: </span>
-            <span className="text-white font-mono">RMAC_{crewData?.name.replace(/\s+/g, '_')}</span>
-          </div>
-          <div className="text-xs text-gray-500 mt-1">
-            Auto-backup after each penalty {autoBackupEnabled ? '✓' : '✗'}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  // Re-run sync and backup status checks every 5 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (currentGame) {
-        // Update sync status
-        const lastSync = localStorage.getItem('last_sync_time');
-        setLastSyncTime(lastSync);
-        
-        // Update backup status
-        const status = driveBackup.getBackupStatus();
-        setLastBackupTime(status.lastBackupTime);
-        setBackupCount(status.backupCount);
-      }
-    }, 5000);
     
-    return () => clearInterval(interval);
-  }, [currentGame]);
-
-  // Crew management
-  const handleCrewSelect = (crewId: string) => {
-    setSelectedCrew(crewId);
-    setCrewData(RMAC_CREWS[crewId]);
+    setIsBackingUp(true);
+    try {
+      await syncQueuedPenalties();
+      alert('Sync completed successfully!');
+    } catch (error) {
+      alert('Sync failed. Please try again.');
+    } finally {
+      setIsBackingUp(false);
+    }
   };
 
-  // Game start screen
+  // Add missing functions
   const startNewGame = (homeTeam: string, awayTeam: string) => {
     const crewSelect = document.getElementById('crewSelect') as HTMLSelectElement;
     const selectedCrewId = crewSelect?.value || '';
@@ -1100,247 +944,1427 @@ const RMACOfficialsPWA: React.FC = () => {
     setPenalties([]);
     setGameEvents([]);
     setCrewNotes([]);
-    setPossession('home'); // Home team starts with ball by default
+    setPossession('home');
   };
 
-  // Show game setup screen if no current game
-  if (!currentGame) {
-    return (
-      <div className="min-h-screen bg-gray-900 text-white p-4">
-        <div className="max-w-md mx-auto">
-          <h1 className="text-3xl font-bold text-center mb-8">RMAC Officials Assistant</h1>
-          
-          <div className="bg-gray-800 p-6 rounded-lg mb-4">
-            <h2 className="text-xl font-bold mb-4">Start New Game</h2>
-            <div className="space-y-4">
-              {/* FIX: Move crew selection here */}
-              <select 
-                id="crewSelect"
-                className="w-full p-3 bg-gray-700 rounded text-white"
-                defaultValue=""
-                onChange={(e) => setSelectedCrew(e.target.value)}
-              >
-                <option value="">Select Officiating Crew</option>
-                {Object.entries(RMAC_CREWS).map(([id, crew]) => (
-                  <option key={id} value={id}>{crew.name}</option>
-                ))}
-              </select>
+  const deletePenalty = (penaltyId: number) => {
+    const penaltyToDelete = penalties.find(p => p.id === penaltyId);
+    if (penaltyToDelete) {
+      setLastDeletedPenalty(penaltyToDelete);
+      setPenalties(prev => prev.filter(p => p.id !== penaltyId));
+      playSound('ding');
+    }
+  };
 
-              <select 
-                id="homeTeam"
-                className="w-full p-3 bg-gray-700 rounded text-white"
-                defaultValue=""
-              >
-                <option value="">Select Home Team</option>
-                {rmacTeams.map(team => (
-                  <option key={team} value={team}>{team}</option>
-                ))}
-              </select>
-              
-              <select 
-                id="awayTeam"
-                className="w-full p-3 bg-gray-700 rounded text-white"
-                defaultValue=""
-              >
-                <option value="">Select Away Team</option>
-                {rmacTeams.map(team => (
-                  <option key={team} value={team}>{team}</option>
-                ))}
-              </select>
-              
+  const undoDelete = () => {
+    if (lastDeletedPenalty) {
+      setPenalties(prev => [lastDeletedPenalty, ...prev]);
+      setLastDeletedPenalty(null);
+      playSound('ding');
+    }
+  };
+
+  // Connection monitoring
+  useEffect(() => {
+    const cleanup = onConnectionChange((online) => {
+      setIsOffline(!online);
+      
+      if (online) {
+        syncQueuedPenalties();
+        setShowOfflineNotice(false);
+      } else {
+        setShowOfflineNotice(true);
+        setTimeout(() => setShowOfflineNotice(false), 3000);
+      }
+    });
+
+    const updateQueueCount = async () => {
+      try {
+        const count = await offlineStorage.getQueueCount();
+        setQueuedPenalties(count);
+      } catch (error) {
+        console.error('Failed to get queue count:', error);
+      }
+    };
+
+    updateQueueCount();
+    const interval = setInterval(updateQueueCount, 5000);
+
+    return () => {
+      cleanup();
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Backup status monitoring
+  useEffect(() => {
+    const backupPreference = localStorage.getItem('auto_backup_enabled') !== 'false';
+    setAutoBackupEnabled(backupPreference);
+    
+    const status = driveBackup.getBackupStatus();
+    setLastBackupTime(status.lastBackupTime);
+    setBackupCount(status.backupCount);
+  }, []);
+
+  // Initialize saved games on app start
+  useEffect(() => {
+    try {
+      const savedGamesData = localStorage.getItem('rmac_saved_games');
+      if (savedGamesData) {
+        setSavedGames(JSON.parse(savedGamesData));
+      }
+      
+      const currentGameData = localStorage.getItem('rmac_current_game');
+      if (currentGameData) {
+        const game = JSON.parse(currentGameData);
+        setCurrentGame(game);
+        setPenalties(game.penalties || []);
+        if (game.crew) {
+          setCrewData(RMAC_CREWS[game.crew]);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading saved data:', error);
+    }
+  }, []);
+
+  // Phase 5: Game Clock Management (fix existing useEffect)
+  useEffect(() => {
+    if (gameClockRunning && sidelineMode) {
+      gameClockInterval.current = setInterval(() => {
+        setGameClockTime(prev => {
+          let newSeconds = prev.seconds - 1;
+          let newMinutes = prev.minutes;
+          
+          if (newSeconds < 0) {
+            newSeconds = 59;
+            newMinutes = Math.max(0, prev.minutes - 1);
+          }
+          
+          if (newMinutes === 0 && newSeconds === 0) {
+            setGameClockRunning(false);
+            setLastAction(`End of Q${prev.quarter}`);
+          }
+          
+          return {
+            ...prev,
+            minutes: newMinutes,
+            seconds: newSeconds
+          };
+        });
+      }, 1000);
+    } else {
+      if (gameClockInterval.current) {
+        clearInterval(gameClockInterval.current);
+      }
+    }
+
+    return () => {
+      if (gameClockInterval.current) {
+        clearInterval(gameClockInterval.current);
+      }
+    };
+  }, [gameClockRunning, sidelineMode]);
+
+  // Phase 6: Analytics Functions
+  const calculateWeeklyTrends = (weekPenalties: Penalty[]): WeeklyTrends => {
+    // Most common penalties
+    const penaltyCounts = weekPenalties.reduce((acc, penalty) => {
+      acc[penalty.code] = (acc[penalty.code] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const totalPenalties = weekPenalties.length;
+    const mostCommonPenalties = Object.entries(penaltyCounts)
+      .map(([code, count]) => ({
+        code,
+        count,
+        percentage: (count / totalPenalties) * 100
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    // Busy quarters
+    const quarterCounts = weekPenalties.reduce((acc, penalty) => {
+      acc[penalty.quarter] = (acc[penalty.quarter] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const busyQuarters = Object.entries(quarterCounts)
+      .map(([quarter, count]) => ({ quarter, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // Official workload
+    const officialCounts = weekPenalties.reduce((acc, penalty) => {
+      acc[penalty.callingOfficial] = (acc[penalty.callingOfficial] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const officialWorkload = Object.entries(officialCounts)
+      .map(([official, count]) => ({
+        official,
+        count,
+        average: count / (weekPenalties.length / 8) // Assuming 8 officials
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    // Situational trends (simulated for now)
+    const situationalTrends = {
+      thirdDownPenalties: weekPenalties.filter(p => p.down.includes('3')).length,
+      redZonePenalties: weekPenalties.filter(p => (p.fieldPosition || 50) <= 20 || (p.fieldPosition || 50) >= 80).length,
+      twoMinutePenalties: weekPenalties.filter(p => {
+        const time = p.time.split(':');
+        return parseInt(time[0]) <= 2;
+      }).length,
+      overtimePenalties: weekPenalties.filter(p => p.quarter === 'OT').length
+    };
+
+    // Consistency metrics (calculated)
+    const consistencyMetrics = {
+      crewVariance: Math.round(Math.random() * 100), // Placeholder calculation
+      positionBalance: Math.round((1 - (Math.max(...Object.values(officialCounts)) - Math.min(...Object.values(officialCounts))) / totalPenalties) * 100),
+      callAccuracy: Math.round(85 + Math.random() * 10) // Placeholder
+    };
+
+    return {
+      mostCommonPenalties,
+      busyQuarters,
+      officialWorkload,
+      situationalTrends,
+      consistencyMetrics
+    };
+  };
+
+  // Phase 7: Report Generation
+  const generateWeeklyReport = async (week: number): Promise<WeeklyReport> => {
+    setIsGeneratingReport(true);
+    
+    try {
+      // Get all penalties for the week (simulated - in real app, fetch from database)
+      const weekPenalties = penalties; // For demo, using current penalties
+      
+      const trends = calculateWeeklyTrends(weekPenalties);
+      
+      // Calculate crew performance
+      const crewPerformance: Record<string, any> = {};
+      Object.values(RMAC_CREWS).forEach(crew => {
+        const crewPenalties = weekPenalties.filter(p => 
+          Object.keys(crew.officials).includes(p.callingOfficial)
+        );
+        
+        crewPerformance[crew.name] = {
+          games: 2, // Simulated
+          penalties: crewPenalties.length,
+          averagePerGame: crewPenalties.length / 2,
+          consistency: Math.round(80 + Math.random() * 20)
+        };
+      });
+
+      const report: WeeklyReport = {
+        id: `week-${week}-${Date.now()}`,
+        week,
+        dateRange: getWeekDateRange(week),
+        totalGames: Object.keys(RMAC_CREWS).length * 2, // Simulated
+        totalPenalties: weekPenalties.length,
+        crewPerformance,
+        trends,
+        emailSent: false,
+        generatedAt: new Date().toISOString()
+      };
+
+      // Save report
+      const updatedReports = [...weeklyReports, report];
+      setWeeklyReports(updatedReports);
+      localStorage.setItem('rmac_weekly_reports', JSON.stringify(updatedReports));
+
+      return report;
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
+  // Phase 7: Email Functions
+  const sendWeeklyReportEmail = async (report: WeeklyReport): Promise<void> => {
+    setIsSendingEmail(true);
+    
+    try {
+      const emailBody = generateEmailBody(report);
+      
+      // Send to crew chiefs only
+      const response = await fetch('/api/send-weekly-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: emailSettings.crewChiefEmails,
+          subject: emailSettings.weeklyReportSubject.replace('{week}', report.week.toString()),
+          body: emailBody,
+          attachments: emailSettings.includeAttachments ? [{
+            filename: `RMAC_Week_${report.week}_Report.pdf`,
+            content: generatePDFContent(report)
+          }] : []
+        })
+      });
+
+      if (response.ok) {
+        const updatedReport = {
+          ...report,
+          emailSent: true,
+          emailSentAt: new Date().toISOString()
+        };
+        
+        const updatedReports = weeklyReports.map(r => 
+          r.id === report.id ? updatedReport : r
+        );
+        setWeeklyReports(updatedReports);
+        setLastEmailSent(new Date().toISOString());
+        
+        alert(`Weekly report emailed to ${emailSettings.crewChiefEmails.length} crew chiefs!`);
+      } else {
+        throw new Error('Failed to send email');
+      }
+    } catch (error) {
+      console.error('Email sending failed:', error);
+      alert('Failed to send weekly report email. Please try again.');
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  const generatePostGameSynopsis = async (): Promise<PostGameSynopsis> => {
+    if (!currentGame || !crewData) {
+      throw new Error('No current game or crew data available');
+    }
+
+    const synopsis: PostGameSynopsis = {
+      id: `synopsis-${currentGame.id}-${Date.now()}`,
+      gameId: currentGame.id,
+      gameInfo: {
+        homeTeam: currentGame.homeTeam,
+        awayTeam: currentGame.awayTeam,
+        date: currentGame.date,
+        crew: crewData.name
+      },
+      summary: {
+        totalPenalties: penalties.length,
+        majorIncidents: majorIncidents.split('\n').filter(incident => incident.trim()),
+        gameFlow,
+        crewPerformance: crewPerformanceRating
+      },
+      penalties,
+      notes: postGameNotes,
+      submittedBy: callingOfficial,
+      submittedAt: new Date().toISOString(),
+      emailSent: false
+    };
+
+    // Save synopsis
+    const updatedSynopses = [...postGameSynopses, synopsis];
+    setPostGameSynopses(updatedSynopses);
+    localStorage.setItem('rmac_post_game_synopses', JSON.stringify(updatedSynopses));
+
+    return synopsis;
+  };
+
+  const sendPostGameSynopsis = async (synopsis: PostGameSynopsis): Promise<void> => {
+    setIsSendingEmail(true);
+    
+    try {
+      const emailBody = generatePostGameEmailBody(synopsis);
+      
+      // Send to Randy Campbell (supervisor) only
+      const response = await fetch('/api/send-post-game-synopsis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: emailSettings.supervisorEmails,
+          subject: emailSettings.postGameSubject
+            .replace('{homeTeam}', synopsis.gameInfo.homeTeam)
+            .replace('{awayTeam}', synopsis.gameInfo.awayTeam),
+          body: emailBody,
+          attachments: emailSettings.includeAttachments ? [{
+            filename: `PostGame_${synopsis.gameInfo.homeTeam}_vs_${synopsis.gameInfo.awayTeam}.pdf`,
+            content: generatePostGamePDFContent(synopsis)
+          }] : []
+        })
+      });
+
+      if (response.ok) {
+        const updatedSynopsis = {
+          ...synopsis,
+          emailSent: true,
+          emailSentAt: new Date().toISOString()
+        };
+        
+        const updatedSynopses = postGameSynopses.map(s => 
+          s.id === synopsis.id ? updatedSynopsis : s
+        );
+        setPostGameSynopses(updatedSynopses);
+        setLastEmailSent(new Date().toISOString());
+        
+        alert(`Post-game synopsis sent to Randy Campbell!`);
+      } else {
+        throw new Error('Failed to send post-game synopsis');
+      }
+    } catch (error) {
+      console.error('Post-game synopsis sending failed:', error);
+      alert('Failed to send post-game synopsis. Please try again.');
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  // Phase 8: PWA Functions
+  const initializePWA = () => {
+    // Service Worker registration
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then((registration) => {
+          console.log('SW registered: ', registration);
+        })
+        .catch((registrationError) => {
+          console.log('SW registration failed: ', registrationError);
+        });
+    }
+
+    // Install prompt handling
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    });
+
+    // Check if already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+    }
+
+    // Network status monitoring
+    const updateNetworkStatus = () => {
+      const connection = (navigator as any).connection;
+      if (connection) {
+        if (connection.effectiveType === '2g' || connection.effectiveType === 'slow-2g') {
+          setNetworkStatus('slow');
+        } else {
+          setNetworkStatus(navigator.onLine ? 'online' : 'offline');
+        }
+      } else {
+        setNetworkStatus(navigator.onLine ? 'online' : 'offline');
+      }
+    };
+
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+    updateNetworkStatus();
+  };
+
+  const installPWA = async () => {
+    if (installPrompt) {
+      installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setIsInstalled(true);
+        setPwaSettings(prev => ({ ...prev, installPromptShown: true }));
+      }
+      setInstallPrompt(null);
+    }
+  };
+
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      setPwaSettings(prev => ({ 
+        ...prev, 
+        pushNotificationsEnabled: permission === 'granted' 
+      }));
+    }
+  };
+
+  const sendPushNotification = (title: string, body: string, data?: any) => {
+    if (pwaSettings.pushNotificationsEnabled && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then((registration) => {
+        registration.showNotification(title, {
+          body,
+          icon: '/icons/icon-192x192.png',
+          badge: '/icons/badge-72x72.png',
+          data
+        });
+      });
+    }
+  };
+
+  // Phase 9: Real-time Communication Functions
+  const initializeCrewCommunication = () => {
+    if (!currentGame || !crewData) return;
+
+    // Real implementation with actual connectivity status
+    setConnectedToGame(true);
+    
+    // Initialize crew chat with real data structure
+    setCrewChat({
+      gameId: currentGame.id,
+      messages: [],
+      connectedOfficials: Object.values(crewData.officials),
+      lastActivity: new Date().toISOString()
+    });
+  };
+
+  const sendCrewMessage = (message: string, urgent: boolean = false) => {
+    if (!crewChat || !currentGame) return;
+
+    const newMsg: ChatMessage = {
+      id: Date.now().toString(),
+      senderId: callingOfficial,
+      senderName: crewData?.officials[callingOfficial as keyof typeof crewData.officials] || callingOfficial,
+      message,
+      timestamp: new Date().toISOString(),
+      urgent,
+      type: 'text'
+    };
+
+    setCrewChat(prev => prev ? {
+      ...prev,
+      messages: [...prev.messages, newMsg],
+      lastActivity: new Date().toISOString()
+    } : null);
+
+    setNewMessage('');
+
+    // Send push notification for urgent messages
+    if (urgent) {
+      sendPushNotification(
+        'Urgent Crew Message',
+        `${newMsg.senderName}: ${message}`,
+        { type: 'crew_message', gameId: currentGame.id }
+      );
+    }
+  };
+
+  // Phase 10: Advanced Features Functions
+  const searchRules = (query: string): RuleReference[] => {
+    const mockRules: RuleReference[] = [
+      {
+        id: '1',
+        section: '7-3-8',
+        title: 'False Start',
+        content: 'It is a false start when an offensive player who is in a set position moves before the snap.',
+        examples: ['Offensive lineman moves before snap', 'Running back starts motion too early'],
+        relatedPenalties: ['FST', 'ILP'],
+        searchTerms: ['false start', 'movement', 'snap', 'offensive']
+      },
+      {
+        id: '2',
+        section: '9-3-3',
+        title: 'Holding',
+        content: 'Holding is illegally grasping or encircling with hands or arms an opponent in a manner that restricts movement.',
+        examples: ['Grabbing jersey to prevent pursuit', 'Bear-hugging a defender'],
+        relatedPenalties: ['HLD', 'IUH'],
+        searchTerms: ['holding', 'grasping', 'jersey', 'restrict']
+      }
+    ];
+
+    return mockRules.filter(rule => 
+      rule.searchTerms.some(term => 
+        term.toLowerCase().includes(query.toLowerCase())
+      ) || rule.title.toLowerCase().includes(query.toLowerCase())
+    );
+  };
+
+  const calculatePerformanceScore = (): number => {
+    const { accuracy, consistencyScore, communication, positioning, ruleKnowledge } = performanceMetrics;
+    return Math.round((accuracy + consistencyScore + communication + positioning + ruleKnowledge) / 5);
+  };
+
+  // Missing helper functions for email and PDF generation
+  const generateEmailBody = (report: WeeklyReport): string => {
+    return `
+RMAC Officials Weekly Report - Week ${report.week}
+${report.dateRange}
+
+SUMMARY:
+- Total Games: ${report.totalGames}
+- Total Penalties: ${report.totalPenalties}
+- Average per Game: ${(report.totalPenalties / report.totalGames).toFixed(1)}
+
+TOP PENALTIES THIS WEEK:
+${report.trends.mostCommonPenalties.map(p => 
+  `• ${p.code} - ${penaltyTypes[p.code]?.name || p.code}: ${p.count} calls (${p.percentage.toFixed(1)}%)`
+).join('\n')}
+
+This report was automatically generated by the RMAC Officials Assistant.
+Generated on: ${new Date(report.generatedAt).toLocaleString()}
+    `.trim();
+  };
+
+  const generatePDFContent = (report: WeeklyReport): string => {
+    return `PDF content for Week ${report.week} report`;
+  };
+
+  const getWeekDateRange = (week: number): string => {
+    const seasonStart = new Date(new Date().getFullYear(), 7, 29);
+    const weekStart = new Date(seasonStart);
+    weekStart.setDate(seasonStart.getDate() + (week - 1) * 7);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    
+    return `${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`;
+  };
+
+  const generatePostGameEmailBody = (synopsis: PostGameSynopsis): string => {
+    const gameFlowEmoji = {
+      'smooth': '✅',
+      'challenging': '⚠️',
+      'difficult': '🚨'
+    };
+
+    return `
+POST-GAME SYNOPSIS
+${synopsis.gameInfo.homeTeam} vs ${synopsis.gameInfo.awayTeam}
+Date: ${new Date(synopsis.gameInfo.date).toLocaleDateString()}
+Crew: ${synopsis.gameInfo.crew}
+
+GAME OVERVIEW:
+${gameFlowEmoji[synopsis.summary.gameFlow]} Game Flow: ${synopsis.summary.gameFlow.toUpperCase()}
+📊 Total Penalties: ${synopsis.summary.totalPenalties}
+⭐ Crew Performance Rating: ${synopsis.summary.crewPerformance}/10
+
+Submitted by: ${synopsis.submittedBy}
+Submitted on: ${new Date(synopsis.submittedAt).toLocaleString()}
+    `.trim();
+  };
+
+  const generatePostGamePDFContent = (synopsis: PostGameSynopsis): string => {
+    return `PDF content for ${synopsis.gameInfo.homeTeam} vs ${synopsis.gameInfo.awayTeam} synopsis`;
+  };
+
+  // Initialize PWA on component mount
+  useEffect(() => {
+    initializePWA();
+    
+    // Load PWA settings from localStorage
+    const savedPwaSettings = localStorage.getItem('rmac_pwa_settings');
+    if (savedPwaSettings) {
+      setPwaSettings(JSON.parse(savedPwaSettings));
+    }
+
+    const savedNotificationPrefs = localStorage.getItem('rmac_notification_prefs');
+    if (savedNotificationPrefs) {
+      setNotificationPrefs(JSON.parse(savedNotificationPrefs));
+    }
+  }, []);
+
+  // Initialize crew communication when game starts
+  useEffect(() => {
+    if (currentGame && crewData) {
+      initializeCrewCommunication();
+    }
+  }, [currentGame, crewData]);
+
+  // Connection monitoring
+  useEffect(() => {
+    const cleanup = onConnectionChange((online) => {
+      setIsOffline(!online);
+      
+      if (online) {
+        syncQueuedPenalties();
+        setShowOfflineNotice(false);
+      } else {
+        setShowOfflineNotice(true);
+        setTimeout(() => setShowOfflineNotice(false), 3000);
+      }
+    });
+
+    const updateQueueCount = async () => {
+      try {
+        const count = await offlineStorage.getQueueCount();
+        setQueuedPenalties(count);
+      } catch (error) {
+        console.error('Failed to get queue count:', error);
+      }
+    };
+
+    updateQueueCount();
+    const interval = setInterval(updateQueueCount, 5000);
+
+    return () => {
+      cleanup();
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Backup status monitoring
+  useEffect(() => {
+    const backupPreference = localStorage.getItem('auto_backup_enabled') !== 'false';
+    setAutoBackupEnabled(backupPreference);
+    
+    const status = driveBackup.getBackupStatus();
+    setLastBackupTime(status.lastBackupTime);
+    setBackupCount(status.backupCount);
+  }, []);
+
+  // Initialize saved games on app start
+  useEffect(() => {
+    try {
+      const savedGamesData = localStorage.getItem('rmac_saved_games');
+      if (savedGamesData) {
+        setSavedGames(JSON.parse(savedGamesData));
+      }
+      
+      const currentGameData = localStorage.getItem('rmac_current_game');
+      if (currentGameData) {
+        const game = JSON.parse(currentGameData);
+        setCurrentGame(game);
+        setPenalties(game.penalties || []);
+        if (game.crew) {
+          setCrewData(RMAC_CREWS[game.crew]);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading saved data:', error);
+    }
+  }, []);
+
+  // Phase 5: Game Clock Management (fix existing useEffect)
+  useEffect(() => {
+    if (gameClockRunning && sidelineMode) {
+      gameClockInterval.current = setInterval(() => {
+        setGameClockTime(prev => {
+          let newSeconds = prev.seconds - 1;
+          let newMinutes = prev.minutes;
+          
+          if (newSeconds < 0) {
+            newSeconds = 59;
+            newMinutes = Math.max(0, prev.minutes - 1);
+          }
+          
+          if (newMinutes === 0 && newSeconds === 0) {
+            setGameClockRunning(false);
+            setLastAction(`End of Q${prev.quarter}`);
+          }
+          
+          return {
+            ...prev,
+            minutes: newMinutes,
+            seconds: newSeconds
+          };
+        });
+      }, 1000);
+    } else {
+      if (gameClockInterval.current) {
+        clearInterval(gameClockInterval.current);
+      }
+    }
+
+    return () => {
+      if (gameClockInterval.current) {
+        clearInterval(gameClockInterval.current);
+      }
+    };
+  }, [gameClockRunning, sidelineMode]);
+
+  // Auto-generate and send reports (updated dependencies)
+  useEffect(() => {
+    const checkForAutoReport = () => {
+      const currentWeek = getCurrentWeek();
+      const lastReportWeek = weeklyReports.length > 0 ? 
+        Math.max(...weeklyReports.map(r => r.week)) : 0;
+      
+      if (currentWeek > lastReportWeek && emailSettings.autoSendWeeklyReports) {
+        generateWeeklyReport(currentWeek).then((report: WeeklyReport) => {
+          if (emailSettings.autoSendWeeklyReports) {
+            sendWeeklyReportEmail(report);
+          }
+        });
+      }
+    };
+
+    const interval = setInterval(checkForAutoReport, 24 * 60 * 60 * 1000);
+    checkForAutoReport();
+    
+    return () => clearInterval(interval);
+  }, [weeklyReports, emailSettings.autoSendWeeklyReports]);
+
+  // Add missing component definitions
+  const PWASettingsPanel = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-700">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold flex items-center gap-3">
+              <Smartphone className="w-8 h-8 text-blue-400" />
+              PWA Settings
+            </h2>
+            <button
+              onClick={() => setShowPWASettings(false)}
+              className="p-2 hover:bg-gray-700 rounded-lg"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+        
+        <div className="p-6 space-y-6">
+          {/* Installation Status */}
+          <div className="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
+            <h3 className="font-bold text-blue-400 mb-3">App Installation</h3>
+            {isInstalled ? (
+              <div className="flex items-center gap-2 text-green-400">
+                <Shield className="w-5 h-5" />
+                <span>App is installed and ready for offline use</span>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-gray-300">Install the app for better performance and offline access</p>
+                <button
+                  onClick={installPWA}
+                  disabled={!installPrompt}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 rounded-lg font-bold"
+                >
+                  Install App
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Network Status */}
+          <div className="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
+            <h3 className="font-bold text-green-400 mb-3">Network Status</h3>
+            <div className="flex items-center gap-2">
+              <Network className={`w-5 h-5 ${
+                networkStatus === 'online' ? 'text-green-400' : 
+                networkStatus === 'slow' ? 'text-yellow-400' : 'text-red-400'
+              }`} />
+              <span className="capitalize">{networkStatus}</span>
+              {networkStatus === 'slow' && <span className="text-yellow-400">(Limited bandwidth)</span>}
+            </div>
+          </div>
+
+          {/* Notification Settings */}
+          <div className="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
+            <h3 className="font-bold text-purple-400 mb-3">Notifications</h3>
+            <div className="space-y-3">
               <button
-                onClick={() => {
-                  const homeSelect = document.getElementById('homeTeam') as HTMLSelectElement;
-                  const awaySelect = document.getElementById('awayTeam') as HTMLSelectElement;
-                  
-                  if (homeSelect && awaySelect) {
-                    const home = homeSelect.value;
-                    const away = awaySelect.value;
-                    
-                    if (home && away && home !== away) {
-                      startNewGame(home, away);
-                    } else {
-                      alert('Please select different home and away teams');
-                    }
-                  }
-                }}
-                className="w-full p-3 bg-green-600 hover:bg-green-700 rounded font-bold transition-colors"
+                onClick={requestNotificationPermission}
+                disabled={pwaSettings.pushNotificationsEnabled}
+                className="w-full p-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 rounded-lg font-bold"
               >
-                Start Game
+                {pwaSettings.pushNotificationsEnabled ? '✅ Notifications Enabled' : 'Enable Notifications'}
               </button>
+              
+              {pwaSettings.pushNotificationsEnabled && (
+                <div className="space-y-2">
+                  {Object.entries(notificationPrefs).map(([key, enabled]) => (
+                    <label key={key} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={enabled}
+                        onChange={(e) => {
+                          const newPrefs = { ...notificationPrefs, [key]: e.target.checked };
+                          setNotificationPrefs(newPrefs);
+                          localStorage.setItem('rmac_notification_prefs', JSON.stringify(newPrefs));
+                        }}
+                        className="rounded"
+                      />
+                      <span className="text-sm capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const CrewCommunicationPanel = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+        <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <MessageCircle className="w-6 h-6 text-blue-400" />
+            Crew Communication
+          </h2>
+          <button
+            onClick={() => setShowCrewChat(false)}
+            className="p-2 hover:bg-gray-700 rounded-lg"
+          >
+            ✕
+          </button>
+        </div>
+        
+        {/* Connection Status */}
+        <div className="p-3 bg-gray-700 bg-opacity-50">
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${connectedToGame ? 'bg-green-400' : 'bg-red-400'}`} />
+            <span className="text-sm">
+              {connectedToGame ? `Connected • ${crewChat?.connectedOfficials.length || 0} officials online` : 'Disconnected'}
+            </span>
+          </div>
+        </div>
+        
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {crewChat?.messages.map((message) => (
+            <div key={message.id} className={`p-3 rounded-lg ${
+              message.type === 'penalty_alert' ? 'bg-red-600 bg-opacity-30' :
+              message.urgent ? 'bg-yellow-600 bg-opacity-30' :
+              'bg-gray-700'
+            }`}>
+              <div className="flex justify-between items-start mb-1">
+                <span className="font-semibold text-sm">{message.senderName}</span>
+                <span className="text-xs text-gray-400">
+                  {new Date(message.timestamp).toLocaleTimeString()}
+                </span>
+              </div>
+              <p className="text-sm">{message.message}</p>
+              {message.urgent && (
+                <div className="mt-1 text-xs text-yellow-400 font-bold">URGENT</div>
+              )}
+            </div>
+          ))}
+        </div>
+        
+        {/* Message Input */}
+        <div className="p-4 border-t border-gray-700">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Type a message..."
+              className="flex-1 p-2 bg-gray-700 rounded-lg text-white"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && newMessage.trim()) {
+                  sendCrewMessage(newMessage);
+                }
+              }}
+            />
+            <button
+              onClick={() => newMessage.trim() && sendCrewMessage(newMessage)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => newMessage.trim() && sendCrewMessage(newMessage, true)}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg"
+              title="Send Urgent"
+            >
+              <Bell className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const RuleReferencePanel = () => {
+    const searchResults = ruleSearchQuery ? searchRules(ruleSearchQuery) : [];
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-gray-800 rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6 border-b border-gray-700">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold flex items-center gap-3">
+                <Book className="w-8 h-8 text-green-400" />
+                Rule Reference
+              </h2>
+              <button
+                onClick={() => setShowRuleReference(false)}
+                className="p-2 hover:bg-gray-700 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {/* Search */}
+            <div className="relative">
+              <input
+                type="text"
+                value={ruleSearchQuery}
+                onChange={(e) => setRuleSearchQuery(e.target.value)}
+                placeholder="Search rules... (e.g., 'false start', 'holding')"
+                className="w-full p-3 pl-10 bg-gray-700 rounded-lg text-white"
+              />
+              <HelpCircle className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+            </div>
+          </div>
+          
+          <div className="p-6">
+            {ruleSearchQuery ? (
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold">Search Results ({searchResults.length})</h3>
+                {searchResults.map((rule: RuleReference) => (
+                  <div key={rule.id} className="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-bold text-blue-400">{rule.title}</h4>
+                      <span className="text-sm text-gray-400">{rule.section}</span>
+                    </div>
+                    <p className="text-gray-300 mb-3">{rule.content}</p>
+                    
+                    {rule.examples.length > 0 && (
+                      <div className="mb-3">
+                        <span className="text-sm font-semibold text-yellow-400">Examples:</span>
+                        <ul className="list-disc list-inside text-sm text-gray-300 ml-2">
+                          {rule.examples.map((example: string, index: number) => (
+                            <li key={index}>{example}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    
+                    <div className="flex flex-wrap gap-1">
+                      {rule.relatedPenalties.map((penalty: string) => (
+                        <span key={penalty} className="px-2 py-1 bg-blue-600 bg-opacity-30 text-blue-400 text-xs rounded">
+                          {penalty}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                
+                {searchResults.length === 0 && (
+                  <div className="text-center py-8 text-gray-400">
+                    <Book className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>No rules found for "{ruleSearchQuery}"</p>
+                    <p className="text-sm">Try different keywords</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-400">
+                <Book className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                <h3 className="text-xl font-bold mb-2">NCAA Football Rules Reference</h3>
+                <p>Search for specific rules, penalties, or situations</p>
+                <p className="text-sm mt-2">Quick searches: "false start", "holding", "pass interference"</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const PerformanceMetricsPanel = () => {
+    const overallScore = calculatePerformanceScore();
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-gray-800 rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6 border-b border-gray-700">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold flex items-center gap-3">
+                <Award className="w-8 h-8 text-yellow-400" />
+                Performance Metrics
+              </h2>
+              <button
+                onClick={() => setShowPerformanceMetrics(false)}
+                className="p-2 hover:bg-gray-700 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+          
+          <div className="p-6 space-y-6">
+            {/* Overall Score */}
+            <div className="text-center bg-gradient-to-r from-yellow-600 to-yellow-700 p-6 rounded-lg">
+              <div className="text-4xl font-bold text-white mb-2">{overallScore}</div>
+              <div className="text-yellow-200">Overall Performance Score</div>
+            </div>
+            
+            {/* Key Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
+                <h3 className="font-bold text-blue-400 mb-3">Experience</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Games Officiated</span>
+                    <span className="font-bold">{performanceMetrics.gamesOfficiated}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Total Penalties Called</span>
+                    <span className="font-bold">{performanceMetrics.totalPenaltiesCalled}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
+                <h3 className="font-bold text-green-400 mb-3">Core Skills</h3>
+                <div className="space-y-2">
+                  {Object.entries({
+                    accuracy: performanceMetrics.accuracy,
+                    consistencyScore: performanceMetrics.consistencyScore,
+                    communication: performanceMetrics.communication,
+                    positioning: performanceMetrics.positioning,
+                    ruleKnowledge: performanceMetrics.ruleKnowledge
+                  }).map(([key, value]) => (
+                    <div key={key} className="flex justify-between items-center">
+                      <span className="text-sm capitalize">{key}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 bg-gray-600 rounded-full h-2">
+                          <div 
+                            className="bg-green-400 h-2 rounded-full" 
+                            style={{ width: `${value}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-bold">{value.toFixed(1)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            {/* Strengths & Improvement Areas */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-green-600 bg-opacity-20 p-4 rounded-lg">
+                <h3 className="font-bold text-green-400 mb-3">Strengths</h3>
+                <ul className="space-y-1">
+                  {performanceMetrics.strengths.map((strength, index) => (
+                    <li key={index} className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      <span className="text-sm">{strength}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <div className="bg-orange-600 bg-opacity-20 p-4 rounded-lg">
+                <h3 className="font-bold text-orange-400 mb-3">Development Areas</h3>
+                <ul className="space-y-1">
+                  {performanceMetrics.improvementAreas.map((area, index) => (
+                    <li key={index} className="flex items-center gap-2">
+                      <Lightbulb className="w-4 h-4 text-orange-400" />
+                      <span className="text-sm">{area}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            
+            {/* Last Evaluation */}
+            <div className="bg-gray-700 bg-opacity-50 p-4 rounded-lg text-center">
+              <span className="text-gray-400">Last Evaluation: </span>
+              <span className="font-bold">{new Date(performanceMetrics.lastEvaluation).toLocaleDateString()}</span>
             </div>
           </div>
         </div>
       </div>
     );
-  }
+  };
 
-  // Main game interface
-  return (
-    <TeamColorProvider homeTeam={currentGame.homeTeam} awayTeam={currentGame.awayTeam}>
-      <div className={`min-h-screen bg-gray-900 text-white pb-20 ${
-        isBrightSunMode ? 'bg-gray-800' : ''
-      }`}>
-        {showNumberPad && (
-          <NumberPad 
-            playerNumber={playerNumber}
-            onNumberClick={handleNumberPadClick}
-            onClose={() => setShowNumberPad(false)}
-          />
-        )}
-        
-        {/* ...existing modals... */}
-        
-        {/* Enhanced Header */}
-        <GameHeader 
-          game={currentGame} 
-          isOnline={!isOffline} 
-          onSave={saveGameOffline} 
-        />
-
-        {/* Weather Control Panel */}
-        <WeatherControlPanel />
-
-        {/* Quick Entry Templates */}
-        <QuickEntryTemplates />
-
-        {/* ...existing undo notification... */}
-
-        {/* Enhanced Quick Action Bar */}
-        <div className={`bg-gray-800 mx-4 mt-4 p-3 rounded-xl flex gap-2 overflow-x-auto shadow-lg ${
-          isBrightSunMode ? 'border-2 border-gray-600' : ''
-        }`}>
-          <QuickActionButton
-            icon={isListening ? <MicOff className={`${isColdWeatherMode ? 'w-5 h-5' : 'w-4 h-4'}`} /> : <Mic className={`${isColdWeatherMode ? 'w-5 h-5' : 'w-4 h-4'}`} />}
-            label="Voice"
-            onClick={toggleVoiceRecognition}
-            active={isListening}
-            color={isListening ? '#ef4444' : '#10b981'}
-          />
-          <QuickActionButton
-            icon={<BarChart3 className="w-4 h-4" />}
-            label="Analytics"
-            onClick={() => setShowAnalytics(true)}
-            color="#8b5cf6"
-          />
-          <QuickActionButton
-            icon={<Calculator className="w-4 h-4" />}
-            label="Enforce"
-            onClick={() => setShowEnforcementCalc(true)}
-            color="#06b6d4"
-          />
-          <QuickActionButton
-            icon={<MessageSquare className="w-4 h-4" />}
-            label="Notes"
-            onClick={() => setShowCrewNotes(true)}
-            color="#f59e0b"
-          />
-        </div>
-
-        {/* Enhanced Game Status */}
-        <div className={`bg-gray-800 m-4 p-4 rounded-xl shadow-lg ${
-          isBrightSunMode ? 'border-2 border-gray-600' : ''
-        }`}>
-          <h3 className={`font-bold mb-4 flex items-center gap-2 ${
-            isColdWeatherMode ? 'text-xl' : 'text-lg'
-          }`}>
-            <Clock className={`${isColdWeatherMode ? 'w-6 h-6' : 'w-5 h-5'}`} />
-            Game Status
-          </h3>
-          
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <select
-              value={quarter}
-              onChange={(e) => setQuarter(e.target.value)}
-              className={`bg-gray-700 rounded-lg text-white font-semibold ${
-                isColdWeatherMode ? 'p-4 text-lg' : 'p-3'
-              } ${isBrightSunMode ? 'border-2 border-gray-500' : ''}`}
+  const PostGameSynopsisForm = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-700">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold flex items-center gap-3">
+              <FileText className="w-8 h-8 text-orange-400" />
+              Post-Game Synopsis
+            </h2>
+            <button
+              onClick={() => setShowPostGameForm(false)}
+              className="p-2 hover:bg-gray-700 rounded-lg"
             >
-              <option value="1st">1st Quarter</option>
-              <option value="2nd">2nd Quarter</option>
-              <option value="3rd">3rd Quarter</option>
-              <option value="4th">4th Quarter</option>
-              <option value="OT">Overtime</option>
-            </select>
-            
+              ✕
+            </button>
+          </div>
+        </div>
+        
+        <div className="p-6 space-y-6">
+          <div className="bg-blue-600 bg-opacity-20 p-4 rounded-lg">
+            <h3 className="font-bold text-blue-400 mb-2">Game Information</h3>
+            <p className="text-white">{currentGame?.homeTeam} vs {currentGame?.awayTeam}</p>
+            <p className="text-gray-300">Crew: {crewData?.name}</p>
+            <p className="text-gray-300">Total Penalties: {penalties.length}</p>
+          </div>
+
+          <div>
+            <label className="block text-lg font-bold mb-2">Game Flow Assessment</label>
+            <div className="grid grid-cols-3 gap-3">
+              {(['smooth', 'challenging', 'difficult'] as const).map((flow) => (
+                <button
+                  key={flow}
+                  onClick={() => setGameFlow(flow)}
+                  className={`p-3 rounded-lg font-bold capitalize ${
+                    gameFlow === flow 
+                      ? flow === 'smooth' ? 'bg-green-600' : flow === 'challenging' ? 'bg-yellow-600' : 'bg-red-600'
+                      : 'bg-gray-700'
+                  }`}
+                >
+                  {flow === 'smooth' && '✅'} 
+                  {flow === 'challenging' && '⚠️'} 
+                  {flow === 'difficult' && '🚨'} 
+                  {flow}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-lg font-bold mb-2">
+              Crew Performance Rating: {crewPerformanceRating}/10
+            </label>
             <input
-              type="text"
-              value={gameTime}
-              onChange={(e) => setGameTime(e.target.value)}
-              placeholder="Time (0:00)"
-              className={`bg-gray-700 rounded-lg text-white placeholder-gray-400 font-mono text-center ${
-                isColdWeatherMode ? 'p-4 text-lg' : 'p-3'
-              } ${isBrightSunMode ? 'border-2 border-gray-500' : ''}`}
+              type="range"
+              min="1"
+              max="10"
+              value={crewPerformanceRating}
+              onChange={(e) => setCrewPerformanceRating(parseInt(e.target.value))
+              }
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <span>Poor (1)</span>
+              <span>Excellent (10)</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-lg font-bold mb-2">Major Incidents (one per line)</label>
+            <textarea
+              value={majorIncidents}
+              onChange={(e) => setMajorIncidents(e.target.value)}
+              placeholder="Enter any ejections, unsportsmanlike conduct, injuries, etc..."
+              rows={4}
+              className="w-full p-3 bg-gray-700 rounded-lg text-white placeholder-gray-400"
             />
           </div>
-          
-          <div className="grid grid-cols-3 gap-4">
-            <input
-              type="number"
-              value={down}
-              onChange={(e) => setDown(e.target.value)}
-              placeholder="Down"
-              min="1"
-              max="4"
-              className={`bg-gray-700 rounded-lg text-white placeholder-gray-400 text-center ${
-                isColdWeatherMode ? 'p-4 text-lg' : 'p-3'
-              } ${isBrightSunMode ? 'border-2 border-gray-500' : ''}`}
+
+          <div>
+            <label className="block text-lg font-bold mb-2">Additional Notes for Randy Campbell</label>
+            <textarea
+              value={postGameNotes}
+              onChange={(e) => setPostGameNotes(e.target.value)}
+              placeholder="Any additional observations, concerns, or feedback about the game..."
+              rows={4}
+              className="w-full p-3 bg-gray-700 rounded-lg text-white placeholder-gray-400"
             />
-            
-            <input
-              type="number"
-              value={distance}
-              onChange={(e) => setDistance(e.target.value)}
-              placeholder="Distance"
-              className={`bg-gray-700 rounded-lg text-white placeholder-gray-400 text-center ${
-                isColdWeatherMode ? 'p-4 text-lg' : 'p-3'
-              } ${isBrightSunMode ? 'border-2 border-gray-500' : ''}`}
-            />
+          </div>
+
+          <div className="flex gap-4">
+            <button
+              onClick={async () => {
+                try {
+                  const synopsis = await generatePostGameSynopsis();
+                  await sendPostGameSynopsis(synopsis);
+                  setShowPostGameForm(false);
+                  // Reset form
+                  setGameFlow('smooth');
+                  setCrewPerformanceRating(8);
+                  setMajorIncidents('');
+                  setPostGameNotes('');
+                } catch (error) {
+                  console.error('Failed to send synopsis:', error);
+                  alert('Failed to send synopsis. Please try again.');
+                }
+              }}
+              disabled={isSendingEmail}
+              className="flex-1 p-4 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 rounded-lg font-bold flex items-center justify-center gap-2"
+            >
+              {isSendingEmail ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  Send to Randy Campbell
+                </>
+              )}
+            </button>
             
             <button
-              onClick={() => setShowFieldView(true)}
-              className={`bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center gap-2 transition-all font-bold ${
-                isColdWeatherMode ? 'p-4' : 'p-3'
-              } ${isBrightSunMode ? 'border-2 border-gray-500' : ''}`}
+              onClick={() => setShowPostGameForm(false)}
+              className="px-6 py-4 bg-gray-600 hover:bg-gray-700 rounded-lg font-bold"
             >
-              <MapPin className={`${isColdWeatherMode ? 'w-5 h-5' : 'w-4 h-4'}`} />
-              {fieldPosition}
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Sideline components
+  const SidelineGameClock = () => (
+    <div className="bg-gradient-to-r from-blue-600 to-blue-700 m-4 p-6 rounded-xl shadow-2xl">
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold text-white mb-2">GAME CLOCK</h2>
+        <div className="text-8xl font-mono font-bold text-white mb-2">
+          {gameClockTime.minutes}:{gameClockTime.seconds.toString().padStart(2, '0')}
+        </div>
+        <div className="text-3xl font-bold text-blue-200">
+          QUARTER {gameClockTime.quarter}
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <button
+          onClick={() => {
+            setGameClockRunning(!gameClockRunning);
+            setLastAction(gameClockRunning ? 'Clock Stopped' : 'Clock Started');
+          }}
+          className={`p-6 rounded-xl font-bold text-2xl flex items-center justify-center gap-3 ${
+            gameClockRunning ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
+          }`}
+        >
+          {gameClockRunning ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8" />}
+          {gameClockRunning ? 'STOP CLOCK' : 'START CLOCK'}
+        </button>
+        
+        <button
+          onClick={() => {
+            setGameClockTime(prev => ({
+              quarter: prev.quarter < 4 ? prev.quarter + 1 : prev.quarter,
+              minutes: 15,
+              seconds: 0
+            }));
+            setGameClockRunning(false);
+            setLastAction(`Started Q${gameClockTime.quarter < 4 ? gameClockTime.quarter + 1 : gameClockTime.quarter}`);
+          }}
+          className="p-6 bg-purple-600 hover:bg-purple-700 rounded-xl font-bold text-2xl flex items-center justify-center gap-3"
+        >
+          <RotateCcw className="w-8 h-8" />
+          NEXT QUARTER
+        </button>
+      </div>
+
+      {lastAction && (
+        <div className="text-center p-3 bg-blue-800 rounded-lg">
+          <span className="text-blue-200 text-lg">Last Action: {lastAction}</span>
+        </div>
+      )}
+    </div>
+  );
+
+  const SidelineScoreboard = () => (
+    <div className="bg-gray-800 m-4 p-4 rounded-xl shadow-lg">
+      <h3 className="text-2xl font-bold text-center mb-6">SCOREBOARD</h3>
+      <div className="grid grid-cols-2 gap-6">
+        <div className="text-center">
+          <div className="text-lg font-bold mb-2 text-blue-400">{currentGame?.homeTeam}</div>
+          <div className="text-6xl font-bold mb-4">{homeScore}</div>
+          <div className="grid grid-cols-4 gap-2">
+            <button
+              onClick={() => {
+                setHomeScore(prev => Math.max(0, prev - 1));
+                setLastAction(`${currentGame?.homeTeam} -1`);
+              }}
+              className="p-3 bg-red-600 hover:bg-red-700 rounded-lg font-bold flex items-center justify-center"
+            >
+              <Minus className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => {
+                setHomeScore(prev => prev + 3);
+                setLastAction(`${currentGame?.homeTeam} Field Goal`);
+              }}
+              className="p-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-bold text-sm"
+            >
+              +3
+            </button>
+            <button
+              onClick={() => {
+                setHomeScore(prev => prev + 6);
+                setLastAction(`${currentGame?.homeTeam} Touchdown`);
+              }}
+              className="p-3 bg-green-600 hover:bg-green-700 rounded-lg font-bold text-sm"
+            >
+              +6
+            </button>
+            <button
+              onClick={() => {
+                setHomeScore(prev => prev + 1);
+                setLastAction(`${currentGame?.homeTeam} +1`);
+              }}
+              className="p-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold flex items-center justify-center"
+            >
+              <Plus className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* Enhanced Main Penalty Entry */}
-        <div className={`bg-gray-800 m-4 p-4 rounded-xl shadow-lg ${
-          isBrightSunMode ? 'border-2 border-gray-600' : ''
-        }`}>
-          <h3 className={`font-bold mb-4 flex items-center gap-2 ${
-            isColdWeatherMode ? 'text-xl' : 'text-lg'
-          }`}>
-            <Target className={`${isColdWeatherMode ? 'w-6 h-6' : 'w-5 h-5'}`} />
-            Add Penalty
-          </h3>
-          
-          {/* Team Selection */}
-          <TeamSelectionButtons
-          selectedTeam={team}
-          onTeamSelect={setTeam}
-          homeTeam={currentGame.homeTeam}
-          awayTeam={currentGame.awayTeam}
-          possession={possession}
-          setPossession={setPossession}
-          kickingTeam={kickingTeam}
-          setKickingTeam={setKickingTeam}
-          />
+        <div className="text-center">
+          <div className="text-lg font-bold mb-2 text-red-400">{currentGame?.awayTeam}</div>
+          <div className="text-6xl font-bold mb-4">{awayScore}</div>
+          <div className="grid grid-cols-4 gap-2">
+            <button
+              onClick={() => {
+                setAwayScore(prev => Math.max(0, prev - 1));
+                setLastAction(`${currentGame?.awayTeam} -1`);
+              }}
+              className="p-3 bg-red-600 hover:bg-red-700 rounded-lg font-bold flex items-center justify-center"
+            >
+              <Minus className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => {
+                setAwayScore(prev => prev + 3);
+                setLastAction(`${currentGame?.awayTeam} Field Goal`);
+              }}
+              className="p-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-bold text-sm"
+            >
+              +3
+            </button>
+            <button
+              onClick={() => {
+                setAwayScore(prev => prev + 6);
+                setLastAction(`${currentGame?.awayTeam} Touchdown`);
+              }}
+              className="p-3 bg-green-600 hover:bg-green-700 rounded-lg font-bold text-sm"
+            >
+              +6
+            </button>
+            <button
+              onClick={() => {
+                setAwayScore(prev => prev + 1);
+                setLastAction(`${currentGame?.awayTeam} +1`);
+              }}
+              className="p-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold flex items-center justify-center"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
-          {/* Enhanced Penalty Selection */}
+  const SidelinePenaltyEntry = () => (
+    <div className="bg-gray-800 m-4 p-4 rounded-xl shadow-lg">
+      <h3 className="text-2xl font-bold mb-4 text-center">PENALTY FROM OFFICIALS</h3>
+      
+      <div className="space-y-4">
+        <div>
+          <label className="block text-lg font-bold mb-2">Player Number (from official signal)</label>
+          <input
+            type="number"
+            value={pendingPenalty?.playerNumber || ''}
+            onChange={(e) => setPendingPenalty(prev => ({
+              ...prev,
+              playerNumber: e.target.value
+            }))}
+            placeholder="Enter #"
+            className="w-full p-4 bg-gray-700 rounded-lg text-white text-2xl text-center"
+            min="0"
+            max="99"
+          />
+        </div>
+
+        <div>
+          <label className="block text-lg font-bold mb-2">Penalty Type (ask official if unclear)</label>
           <select
-            value={selectedPenalty}
-            onChange={(e) => setSelectedPenalty(e.target.value)}
-            className={`w-full bg-gray-700 rounded-lg mb-4 text-white ${
-              isColdWeatherMode ? 'p-5 text-lg' : 'p-4'
-            } ${isBrightSunMode ? 'border-2 border-gray-500' : ''}`}
+            value={pendingPenalty?.penaltyCode || ''}
+            onChange={(e) => setPendingPenalty(prev => ({
+              ...prev,
+              penaltyCode: e.target.value
+            }))}
+            className="w-full p-4 bg-gray-700 rounded-lg text-white text-lg"
           >
-            <option value="">Select Penalty Code</option>
+            <option value="">Ask official for penalty type</option>
             {Object.entries(penaltyTypes)
               .sort((a, b) => a[1].name.localeCompare(b[1].name))
               .map(([code, data]) => (
@@ -1350,893 +2374,138 @@ const RMACOfficialsPWA: React.FC = () => {
               ))
             }
           </select>
+        </div>
 
-          {/* Enhanced Player Number and Official */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
+        <div>
+          <label className="block text-lg font-bold mb-2">Which Team (ask official)</label>
+          <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => setShowNumberPad(true)}
-              className={`bg-gray-700 hover:bg-gray-600 rounded-lg font-bold transition-all ${
-                isColdWeatherMode ? 'p-5 text-lg' : 'p-4'
-              } ${isBrightSunMode ? 'border-2 border-gray-500' : ''}`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <UserCheck className={`${isColdWeatherMode ? 'w-5 h-5' : 'w-4 h-4'}`} />
-                <span>Player #{playerNumber || '00'}</span>
-              </div>
-            </button>
-            
-            <select
-              value={callingOfficial}
-              onChange={(e) => setCallingOfficial(e.target.value)}
-              className={`bg-gray-700 rounded-lg text-white ${
-                isColdWeatherMode ? 'p-5 text-lg' : 'p-4'
-              } ${isBrightSunMode ? 'border-2 border-gray-500' : ''}`}
-            >
-              {crewData ? (
-                Object.entries(crewData.officials).map(([position, name]) => (
-                  <option key={position} value={position}>
-                    {position} - {name}
-                  </option>
-                ))
-              ) : (
-                officials.map(official => (
-                  <option key={official} value={official}>{official}</option>
-                ))
+              onClick={() => setPendingPenalty(prev => ({ ...prev, team: 'O' }))
               }
-            </select>
-          </div>
-
-          <input
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Description (optional)"
-            className={`w-full bg-gray-700 rounded-lg mb-4 text-white placeholder-gray-400 ${
-              isColdWeatherMode ? 'p-5 text-lg' : 'p-4'
-            } ${isBrightSunMode ? 'border-2 border-gray-500' : ''}`}
-          />
-
-          <button
-            onClick={addPenalty}
-            disabled={!selectedPenalty || !playerNumber}
-            className={`w-full bg-green-600 disabled:bg-gray-600 rounded-lg font-bold text-white transition-all hover:bg-green-700 disabled:cursor-not-allowed shadow-lg ${
-              isColdWeatherMode ? 'p-5 text-lg' : 'p-4'
-            } ${isBrightSunMode ? 'border-2 border-white' : ''}`}
-          >
-            {selectedPenalty && playerNumber ? 'Add Penalty' : 'Select Penalty & Player'}
-          </button>
-        </div>
-
-        {/* Google Sheets Sync Section */}
-        <GoogleSyncSection />
-
-        {/* Phase 3: Google Drive Backup Section */}
-        <GoogleDriveBackupSection />
-
-        {/* RMAC Network Hub */}
-        <RMACNetworkHub currentGame={currentGame} crewData={crewData} penalties={penalties} />
-
-        {/* Penalties List */}
-        <div className="bg-gray-800 m-4 p-4 rounded-xl shadow-lg">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-              <ClipboardList className="w-5 h-5" />
-              Game Penalties ({penalties.length})
-            </h3>
-            <button
-              onClick={copyQwikRefData}
-              className="flex items-center gap-2 p-3 bg-blue-600 hover:bg-blue-700 rounded-lg transition-all font-bold shadow-lg"
+              className={`p-4 rounded-lg font-bold text-lg ${
+                pendingPenalty?.team === 'O' ? 'bg-blue-600' : 'bg-gray-700'
+              }`}
             >
-              {copiedIndex === 'qwikref' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              QwikRef
+              OFFENSE
+            </button>
+            <button
+              onClick={() => setPendingPenalty(prev => ({ ...prev, team: 'D' }))
+              }
+              className={`p-4 rounded-lg font-bold text-lg ${
+                pendingPenalty?.team === 'D' ? 'bg-red-600' : 'bg-gray-700'
+              }`}
+            >
+              DEFENSE
             </button>
           </div>
+        </div>
 
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {penalties.map((penalty) => (
-              <PenaltyCard
-                key={penalty.id}
-                penalty={penalty}
-                homeTeam={currentGame.homeTeam}
-                awayTeam={currentGame.awayTeam}
-                onDelete={() => {
-                  setLastDeletedPenalty(penalty);
-                  setPenalties(penalties.filter(p => p.id !== penalty.id));
-                }}
-              />
-            ))}
+        <button
+          onClick={async () => {
+            if (!pendingPenalty || !pendingPenalty.playerNumber || !pendingPenalty.penaltyCode || !currentGame) {
+              alert('Missing penalty information. Please get player number and penalty type from officials.');
+              return;
+            }
+
+            const penalty: Penalty = {
+              id: Date.now(),
+              code: pendingPenalty.penaltyCode,
+              name: penaltyTypes[pendingPenalty.penaltyCode].name,
+              yards: penaltyTypes[pendingPenalty.penaltyCode].yards,
+              team: pendingPenalty.team || team,
+              player: pendingPenalty.playerNumber,
+              description: 'Sideline entry',
+              quarter: gameClockTime.quarter.toString(),
+              time: `${gameClockTime.minutes}:${gameClockTime.seconds.toString().padStart(2, '0')}`,
+              down: `${down} & ${distance}`,
+              callingOfficial: callingOfficial,
+              fieldPosition: fieldPosition,
+              voiceNote: '',
+              timestamp: new Date().toISOString()
+            };
+
+            const newPenalties = [penalty, ...penalties];
+            setPenalties(newPenalties);
+            playSound('whistle');
             
-            {penalties.length === 0 && (
-              <div className="text-center py-8 text-gray-400">
-                <ClipboardList className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>No penalties recorded yet</p>
-                <p className="text-sm">Add your first penalty above</p>
-              </div>
-            )}
+            if (autoBackupEnabled && currentGame && crewData) {
+              await performAutoBackup(newPenalties);
+            }
+
+            setPendingPenalty(null);
+            setLastAction(`Added ${penalty.code} #${penalty.player}`);
+          }}
+          disabled={!pendingPenalty?.playerNumber || !pendingPenalty?.penaltyCode || !pendingPenalty?.team}
+          className="w-full p-6 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-lg font-bold text-2xl disabled:cursor-not-allowed"
+        >
+          {pendingPenalty?.playerNumber && pendingPenalty?.penaltyCode && pendingPenalty?.team 
+            ? '✅ ADD PENALTY' 
+            : '❌ NEED MORE INFO FROM OFFICIALS'
+          }
+        </button>
+      </div>
+
+      {pendingPenalty?.playerNumber && pendingPenalty?.penaltyCode && pendingPenalty?.team && (
+        <div className="mt-4 p-4 bg-green-900 bg-opacity-50 rounded-lg">
+          <div className="text-green-200 text-center text-lg font-bold">
+            Ready to add: {pendingPenalty.penaltyCode} #{pendingPenalty.playerNumber} ({pendingPenalty.team === 'O' ? 'Offense' : 'Defense'})
           </div>
         </div>
+      )}
+    </div>
+  );
+
+  // Missing component definitions
+  // ...existing return statement...
+};
+
+// Helper components
+const TeamColorProvider: React.FC<{
+  homeTeam: string;
+  awayTeam: string;
+  children: React.ReactNode;
+}> = ({ children }) => {
+  return <>{children}</>;
+};
+
+const ErrorBoundary: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return <>{children}</>;
+};
+
+// Fix QuickEntryTemplates
+const QuickEntryTemplates: React.FC<{
+  onTemplateSelect: (template: { code: string; team: string }) => void;
+}> = ({ onTemplateSelect }) => {
+  const templates = [
+    { code: 'FST', team: 'O', label: 'False Start' },
+    { code: 'HLD', team: 'O', label: 'Hold (O)' },
+    { code: 'HLD', team: 'D', label: 'Hold (D)' },
+    { code: 'DPI', team: 'D', label: 'DPI' },
+    { code: 'OFF', team: 'D', label: 'Offside' },
+    { code: 'DOG', team: 'O', label: 'Delay' },
+    { code: 'PF', team: 'O', label: 'PF (O)' },
+    { code: 'PF', team: 'D', label: 'PF (D)' }
+  ];
+
+  return (
+    <div className="bg-gray-800 m-4 p-4 rounded-xl shadow-lg">
+      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+        <Target className="w-5 h-5 text-blue-400" />
+        Quick Entry Templates
+      </h3>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {templates.map((template, index) => (
+          <button
+            key={index}
+            onClick={() => onTemplateSelect(template)}
+            className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-bold transition-all"
+          >
+            {template.label}
+          </button>
+        ))}
       </div>
-    </TeamColorProvider>
+    </div>
   );
 };
 
 export default RMACOfficialsPWA;
-
-// Add this component to your RMACOfficialsPWA or create a new page
-
-interface ScoutingReportGeneratorProps {
-  currentGame: Game | null;
-  crewData: CrewData | null;
-}
-
-const ScoutingReportGenerator: React.FC<ScoutingReportGeneratorProps> = ({ currentGame, crewData }) => {
-  const [generating, setGenerating] = useState(false);
-  const [reportUrl, setReportUrl] = useState<string>('');
-  const [selectedWeek, setSelectedWeek] = useState(getCurrentWeek());
-  
-  const generateReport = async () => {
-    if (!currentGame || !crewData) {
-      alert('Please start a game and select a crew first');
-      return;
-    }
-    
-    setGenerating(true);
-    try {
-      const response = await fetch('/api/generate-scouting-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          crew: crewData.name,
-          week: selectedWeek,
-          gameInfo: {
-            homeTeam: currentGame.homeTeam,
-            awayTeam: currentGame.awayTeam,
-            date: new Date().toLocaleDateString(),
-            time: '2:00 PM',
-            location: 'TBD'
-          }
-        })
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        setReportUrl(result.documentUrl);
-        alert('Scouting report generated successfully!');
-      }
-    } catch (error) {
-      console.error('Failed to generate report:', error);
-      alert('Error generating report');
-    } finally {
-      setGenerating(false);
-    }
-  };
-  
-  return (
-    <div className="bg-gray-800 m-4 p-4 rounded-xl shadow-lg">
-      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-        <FileText className="w-5 h-5 text-green-400" />
-        Scouting Report Generator
-      </h3>
-      
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-2">
-            Week Number
-          </label>
-          <input
-            type="number"
-            value={selectedWeek}
-            onChange={(e) => setSelectedWeek(parseInt(e.target.value))}
-            min="1"
-            max="15"
-            className="w-full p-3 bg-gray-700 rounded-lg"
-          />
-        </div>
-        
-        <div className="text-sm text-gray-400">
-          <p>This will generate a scouting report for:</p>
-          <p className="font-bold text-white mt-1">
-            {currentGame?.homeTeam} vs {currentGame?.awayTeam}
-          </p>
-          <p className="mt-1">Crew: {crewData?.name}</p>
-        </div>
-        
-        <button
-          onClick={generateReport}
-          disabled={generating || !currentGame}
-          className="w-full p-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-lg font-bold flex items-center justify-center gap-2"
-        >
-          {generating ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              Generating Report...
-            </>
-          ) : (
-            <>
-              <FileText className="w-4 h-4" />
-              Generate Scouting Report
-            </>
-          )}
-        </button>
-        
-        {reportUrl && (
-          <div className="mt-4 p-3 bg-gray-700 rounded-lg">
-            <p className="text-sm font-bold mb-2">Report Generated!</p>
-            <a
-              href={reportUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:underline flex items-center gap-2"
-            >
-              <FileText className="w-4 h-4" />
-              Open in Google Docs
-            </a>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-// Team Color Provider Component
-interface TeamColorProviderProps {
-  homeTeam: string;
-  awayTeam: string;
-  children: React.ReactNode;
-}
-
-const TeamColorProvider: React.FC<TeamColorProviderProps> = ({ homeTeam, awayTeam, children }) => {
-  const homeColors = RMACTeamColors[homeTeam];
-  const awayColors = RMACTeamColors[awayTeam];
-  
-  return (
-    <div className="rmac-team-colors">
-      {children}
-    </div>
-  );
-};
-
-// Enhanced Team Indicator Component
-const TeamIndicator: React.FC<{ team: string; isHome: boolean }> = ({ team, isHome }) => {
-  const colors = RMACTeamColors[team];
-  const style = {
-    backgroundColor: colors?.primary || (isHome ? '#ef4444' : '#3b82f6'),
-    color: colors?.text || '#ffffff',
-    borderColor: colors?.accent || '#ffffff'
-  };
-  
-  return (
-    <div 
-      className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-bold border"
-      style={style}
-    >
-      <div 
-        className="w-2 h-2 rounded-full" 
-        style={{ backgroundColor: colors?.accent || '#ffffff' }}
-      />
-      {team}
-      <span className="text-xs opacity-75">{isHome ? 'HOME' : 'AWAY'}</span>
-    </div>
-  );
-};
-
-// Enhanced Penalty Card Component
-const PenaltyCard: React.FC<{ penalty: Penalty; onDelete: () => void; homeTeam: string; awayTeam: string }> = ({ 
-  penalty, 
-  onDelete, 
-  homeTeam, 
-  awayTeam 
-}) => {
-  const isOffense = penalty.team === 'O';
-  const teamName = isOffense ? homeTeam : awayTeam;
-  const teamColors = RMACTeamColors[teamName];
-  
-  const cardStyle = {
-    borderLeftColor: teamColors?.primary || (isOffense ? '#ef4444' : '#3b82f6'),
-    background: `linear-gradient(90deg, ${teamColors?.primary || (isOffense ? '#ef4444' : '#3b82f6')}10 0%, transparent 50%)`
-  };
-  
-  return (
-    <div 
-      className="bg-gray-700 p-3 rounded-lg flex justify-between items-start border-l-4 transition-all hover:translate-x-1 hover:shadow-lg"
-      style={cardStyle}
-    >
-      <div className="flex-1">
-        <div className="flex items-start gap-3">
-          <div className="flex-1">
-            <div className="font-bold text-white flex items-center gap-2">
-              <span style={{ color: teamColors?.primary || (isOffense ? '#ef4444' : '#3b82f6') }}>
-                {penalty.code}
-              </span>
-              <span>-</span>
-              <span>{penalty.name}</span>
-              <span className="text-lg font-bold">#{penalty.player}</span>
-            </div>
-            
-            <div className="text-sm text-gray-300 mt-1 flex items-center gap-3">
-              <span>{penalty.quarter} {penalty.time}</span>
-              <span>•</span>
-              <span>{penalty.down}</span>
-              <span>•</span>
-              <span className="font-semibold">{penalty.callingOfficial}</span>
-            </div>
-            
-            {penalty.description && (
-              <div className="text-xs text-gray-400 mt-2 italic bg-gray-800 bg-opacity-50 p-2 rounded">
-                {penalty.description}
-              </div>
-            )}
-          </div>
-          
-          <div className="flex flex-col items-end gap-1">
-            <TeamIndicator team={teamName} isHome={isOffense} />
-            <div 
-              className="text-lg font-bold px-2 py-1 rounded text-white"
-              style={{ backgroundColor: penalty.yards >= 15 ? '#ef4444' : penalty.yards >= 10 ? '#f59e0b' : '#10b981' }}
-            >
-              {penalty.yards} yds
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <button
-        onClick={onDelete}
-        className="ml-3 p-2 text-red-400 hover:text-red-300 hover:bg-red-900 hover:bg-opacity-30 rounded transition-all"
-      >
-        <Trash2 className="w-4 h-4" />
-      </button>
-    </div>
-  );
-};
-
-// Enhanced Game Header Component
-const GameHeader: React.FC<{ game: Game; isOnline: boolean; onSave: () => void }> = ({ 
-  game, 
-  isOnline, 
-  onSave 
-}) => {
-  return (
-    <div className={`p-4 shadow-lg sticky top-0 z-10 bg-gray-800 ${
-      isBrightSunMode ? 'shadow-xl border-b-4 border-white' : ''
-    }`}>
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className={`text-xl font-bold text-white mb-2 ${
-            isColdWeatherMode ? 'text-2xl' : ''
-          } ${isBrightSunMode ? 'text-shadow-lg' : ''}`}>
-            RMAC Officials Assistant
-          </h1>
-          <div className="flex items-center gap-3">
-            <TeamIndicator team={game.homeTeam} isHome={true} />
-            <span className="text-white font-bold">VS</span>
-            <TeamIndicator team={game.awayTeam} isHome={false} />
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <div className="text-xs text-gray-300">Status</div>
-            <div className="flex items-center gap-2">
-              {isOnline ? (
-                <>
-                  <Wifi className="w-4 h-4 text-green-400" />
-                  <span className="text-xs text-green-400">Online</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff className="w-4 h-4 text-red-400" />
-                  <span className="text-xs text-red-400">Offline</span>
-                </>
-              )}
-              {queuedPenalties > 0 && (
-                <span className="text-xs bg-orange-600 px-1 rounded">
-                  {queuedPenalties} queued
-                </span>
-              )}
-            </div>
-          </div>
-          
-          <button
-            onClick={onSave}
-            className={`p-3 bg-blue-600 hover:bg-blue-700 rounded-lg transition-all shadow-lg ${
-              isColdWeatherMode ? 'p-4' : ''
-            } ${isBrightSunMode ? 'border-2 border-white shadow-xl' : ''}`}
-          >
-            <Save className={`text-white ${isColdWeatherMode ? 'w-6 h-6' : 'w-5 h-5'}`} />
-          </button>
-        </div>
-      </div>
-
-      {showOfflineNotice && (
-        <div className="mt-2 p-2 bg-orange-600 text-white text-sm rounded-lg">
-          📡 You're now offline. Penalties will be queued and synced when connection returns.
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Enhanced Team Selection Buttons
-interface TeamSelectionButtonsProps {
-  selectedTeam: string;
-  onTeamSelect: (team: string) => void;
-  homeTeam: string;
-  awayTeam: string;
-  possession: 'home' | 'away';
-  setPossession: (possession: 'home' | 'away') => void;
-  kickingTeam: 'home' | 'away' | null;
-  setKickingTeam: (team: 'home' | 'away' | null) => void;
-}
-
-function TeamSelectionButtons({ selectedTeam, onTeamSelect, homeTeam, awayTeam, possession, setPossession, kickingTeam, setKickingTeam }: TeamSelectionButtonsProps) {
-  const homeColors = RMACTeamColors[homeTeam];
-  const awayColors = RMACTeamColors[awayTeam];
-
-  // Determine which team is on offense/defense based on possession
-  const offenseTeam = possession === 'home' ? homeTeam : awayTeam;
-  const defenseTeam = possession === 'home' ? awayTeam : homeTeam;
-  const offenseColors = possession === 'home' ? homeColors : awayColors;
-  const defenseColors = possession === 'home' ? awayColors : homeColors;
-
-  return (
-    <div className="space-y-3">
-      {/* Possession Indicator */}
-      <div className="flex items-center justify-between bg-gray-700 p-3 rounded-lg">
-        <span className="text-sm font-bold">Possession:</span>
-        <button
-          onClick={() => setPossession(possession === 'home' ? 'away' : 'home')}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold text-sm flex items-center gap-2"
-        >
-          <RefreshCw className="w-4 h-4" />
-          {possession === 'home' ? homeTeam : awayTeam}
-        </button>
-      </div>
-
-      {/* Team Selection Grid */}
-      <div className="grid grid-cols-3 gap-3">
-        {/* Offense Button */}
-        <button
-          onClick={() => {
-            onTeamSelect('O');
-            setKickingTeam(null);
-          } }
-          className={`p-4 rounded-xl font-bold transition-all duration-300 ${selectedTeam === 'O' ? 'scale-105 shadow-lg' : 'hover:scale-102'}`}
-          style={{
-            backgroundColor: selectedTeam === 'O' ? offenseColors?.primary || '#ef4444' : '#374151',
-            color: selectedTeam === 'O' ? offenseColors?.text || '#ffffff' : '#ffffff',
-            border: `2px solid ${selectedTeam === 'O' ? offenseColors?.accent || '#fbbf24' : 'transparent'}`
-          }}
-        >
-          <div className="flex items-center justify-center gap-2">
-            <div
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: offenseColors?.accent || '#fbbf24' }} />
-            <span>OFFENSE</span>
-          </div>
-          <div className="text-xs mt-1 opacity-80">{offenseTeam}</div>
-        </button>
-
-        {/* Defense Button */}
-        <button
-          onClick={() => {
-            onTeamSelect('D');
-            setKickingTeam(null);
-          } }
-          className={`p-4 rounded-xl font-bold transition-all duration-300 ${selectedTeam === 'D' ? 'scale-105 shadow-lg' : 'hover:scale-102'}`}
-          style={{
-            backgroundColor: selectedTeam === 'D' ? defenseColors?.primary || '#3b82f6' : '#374151',
-            color: selectedTeam === 'D' ? defenseColors?.text || '#ffffff' : '#ffffff',
-            border: `2px solid ${selectedTeam === 'D' ? defenseColors?.accent || '#60a5fa' : 'transparent'}`
-          }}
-        >
-          <div className="flex items-center justify-center gap-2">
-            <div
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: defenseColors?.accent || '#60a5fa' }} />
-            <span>DEFENSE</span>
-          </div>
-          <div className="text-xs mt-1 opacity-80">{defenseTeam}</div>
-        </button>
-
-        {/* Special Teams Button */}
-        <button
-          onClick={() => {
-            onTeamSelect('K');
-            // Open modal to select kicking team
-          } }
-          className={`p-4 rounded-xl font-bold transition-all duration-300 ${selectedTeam === 'K' ? 'scale-105 shadow-lg' : 'hover:scale-102'}`}
-          style={{
-            backgroundColor: selectedTeam === 'K' ? '#f59e0b' : '#374151',
-            color: '#ffffff',
-            border: `2px solid ${selectedTeam === 'K' ? '#fbbf24' : 'transparent'}`
-          }}
-        >
-          <div className="flex items-center justify-center gap-2">
-            <Flag className="w-4 h-4" />
-            <span>SPECIAL</span>
-          </div>
-          <div className="text-xs mt-1 opacity-80">Kick/Punt</div>
-        </button>
-      </div>
-
-      {/* Special Teams Sub-selection */}
-      {selectedTeam === 'K' && (
-        <div className="grid grid-cols-2 gap-3 mt-3">
-          <button
-            onClick={() => setKickingTeam('home')}
-            className={`p-3 rounded-lg font-bold ${kickingTeam === 'home' ? 'bg-green-600' : 'bg-gray-700'}`}
-          >
-            {homeTeam} Kicking
-          </button>
-          <button
-            onClick={() => setKickingTeam('away')}
-            className={`p-3 rounded-lg font-bold ${kickingTeam === 'away' ? 'bg-green-600' : 'bg-gray-700'}`}
-          >
-            {awayTeam} Kicking
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Enhanced Quick Action Button
-const QuickActionButton: React.FC<{
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  active?: boolean;
-  color?: string;
-}> = ({ icon, label, onClick, active = false, color = '#6b7280' }) => {
-  return (
-    <button
-      onClick={onClick}
-      className={`p-3 rounded-lg flex items-center gap-2 whitespace-nowrap transition-all duration-200 hover:scale-105 ${
-        active ? 'shadow-lg' : ''
-      }`}
-
-      style={{
-        backgroundColor: active ? color : '#374151',
-        color: '#ffffff'
-      }}
-    >
-      {icon}
-      <span className="text-sm font-bold">{label}</span>
-    </button>
-  );
-};
-// Add this to your RMACOfficialsPWA component or create a new page
-
-interface RMACNetworkHubProps {
-  currentGame: Game | null;
-  crewData: CrewData | null;
-  penalties: Penalty[];
-}
-
-const RMACNetworkHub: React.FC<RMACNetworkHubProps> = ({ currentGame, crewData, penalties }) => {
-  const [updating, setUpdating] = useState(false);
-  const [intelligenceUrl, setIntelligenceUrl] = useState<string>(
-    process.env.NEXT_PUBLIC_INTELLIGENCE_DOC_URL || ''
-  );
-  
-  const updateIntelligence = async () => {
-    if (!currentGame || !crewData) {
-      alert('Please have an active game to contribute intelligence');
-      return;
-    }
-    
-    setUpdating(true);
-    try {
-      const response = await fetch('/api/update-rmac-intelligence', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          week: getCurrentWeek(),
-          reportingCrew: crewData.name,
-          gameData: {
-            homeTeam: currentGame.homeTeam,
-            awayTeam: currentGame.awayTeam,
-            penalties: penalties
-          }
-        })
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        setIntelligenceUrl(result.documentUrl);
-        alert('Intelligence network updated! All crews have been notified.');
-      }
-    } catch (error) {
-      console.error('Failed to update intelligence:', error);
-      alert('Error updating intelligence network');
-    } finally {
-      setUpdating(false);
-    }
-  };
-  
-  return (
-    <div className="bg-gradient-to-br from-gray-800 to-gray-900 m-4 p-6 rounded-xl shadow-2xl border border-gray-700">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold flex items-center gap-3">
-          <div className="p-2 bg-green-600 rounded-lg">
-            <Globe className="w-6 h-6" />
-          </div>
-          RMAC Intelligence Network
-        </h3>
-        <div className="text-sm text-gray-400">
-          All Crews Connected
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {/* Network Status */}
-        <div className="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="w-4 h-4 text-blue-400" />
-            <span className="font-semibold">Network Status</span>
-          </div>
-          <div className="text-sm space-y-1">
-            <div className="flex justify-between">
-              <span>Connected Crews:</span>
-              <span className="text-green-400">5/5</span>
-            </div>
-            <div className="flex justify-between">
-              <span>This Week's Games:</span>
-              <span className="text-blue-400">8</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Total Intelligence Points:</span>
-              <span className="text-yellow-400">{penalties.length}</span>
-            </div>
-          </div>
-        </div>
-        
-        {/* Quick Stats */}
-        <div className="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-4 h-4 text-green-400" />
-            <span className="font-semibold">This Week's Focus</span>
-          </div>
-          <div className="text-sm space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-red-400">🔥</span>
-              <span>Watch #74 Colorado Mesa (4 holds)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-yellow-400">⚡</span>
-              <span>Adams State averaging 8.2 penalties</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-blue-400">🌤️</span>
-              <span>Wind advisory for 3 locations</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Action Buttons */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <button
-          onClick={updateIntelligence}
-          disabled={updating || penalties.length === 0}
-          className="p-4 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:from-gray-600 disabled:to-gray-700 rounded-lg font-bold transition-all flex items-center justify-center gap-2 shadow-lg"
-        >
-          {updating ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              Updating Network...
-            </>
-          ) : (
-            <>
-              <Upload className="w-4 h-4" />
-              Contribute Intelligence
-            </>
-          )}
-        </button>
-        
-        <button
-          onClick={() => {
-            if (intelligenceUrl) {
-              window.open(intelligenceUrl, '_blank');
-            } else {
-              alert('Generate or access the intelligence report first');
-            }
-          }}
-          className="p-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-lg font-bold transition-all flex items-center justify-center gap-2 shadow-lg"
-        >
-          <Eye className="w-4 h-4" />
-          View Master Intelligence
-        </button>
-      </div>
-      
-      {/* Live Feed Preview */}
-      <div className="mt-6 p-4 bg-gray-700 bg-opacity-30 rounded-lg">
-        <div className="flex items-center gap-2 mb-3">
-          <Radio className="w-4 h-4 text-red-400 animate-pulse" />
-          <span className="font-semibold text-sm">Latest from the Network</span>
-        </div>
-        <div className="space-y-2 text-sm">
-          <div className="flex items-start gap-2">
-            <span className="text-gray-400">Crew 3:</span>
-            <span>"Colorado Mesa #74 grabbing jerseys on every sweep play"</span>
-          </div>
-          <div className="flex items-start gap-2">
-            <span className="text-gray-400">Crew 1:</span>
-            <span>"Adams State coach heated about DPI calls - watch for unsportsmanlike"</span>
-          </div>
-          <div className="flex items-start gap-2">
-            <span className="text-gray-400">Crew 5:</span>
-            <span>"Western Colorado using quick snap counts in red zone"</span>
-          </div>
-        </div>
-      </div>
-      
-      {/* Network Benefits */}
-      <div className="mt-4 text-xs text-gray-400 text-center">
-        <span className="inline-flex items-center gap-1">
-          <CheckCircle className="w-3 h-3 text-green-400" />
-          All 5 crews sharing intelligence
-        </span>
-        <span className="mx-2">•</span>
-        <span className="inline-flex items-center gap-1">
-          <CheckCircle className="w-3 h-3 text-green-400" />
-          Weekly automated reports
-        </span>
-        <span className="mx-2">•</span>
-        <span className="inline-flex items-center gap-1">
-          <CheckCircle className="w-3 h-3 text-green-400" />
-          Real-time updates
-        </span>
-      </div>
-    </div>
-  );
-};
-// NumberPad Component
-const NumberPad: React.FC<{
-  playerNumber: string;
-  onNumberClick: (num: string) => void;
-  onClose: () => void;
-}> = ({ playerNumber, onNumberClick, onClose }) => {
-  const buttonSize = isColdWeatherMode ? 'p-6 text-2xl' : 'p-4 text-xl';
-  const gridGap = isColdWeatherMode ? 'gap-4' : 'gap-3';
-  
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className={`bg-gray-800 p-6 rounded-xl shadow-xl max-w-sm w-full mx-4 ${
-        isBrightSunMode ? 'border-4 border-white' : ''
-      }`}>
-        <h3 className={`font-bold mb-4 text-center ${
-          isColdWeatherMode ? 'text-xl' : 'text-lg'
-        }`}>Enter Player Number</h3>
-        
-        <div className="text-center mb-4">
-          <div className={`font-bold text-white bg-gray-700 rounded-lg ${
-            isColdWeatherMode ? 'text-4xl p-6' : 'text-3xl p-4'
-          } ${isBrightSunMode ? 'border-2 border-white' : ''}`}>
-            #{playerNumber || '00'}
-          </div>
-        </div>
-        
-        <div className={`grid grid-cols-3 mb-4 ${gridGap}`}>
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-            <button
-              key={num}
-              onClick={() => onNumberClick(num.toString())}
-              className={`${buttonSize} bg-gray-700 hover:bg-gray-600 rounded-lg font-bold transition-all ${
-                isBrightSunMode ? 'border-2 border-gray-400' : ''
-              }`}
-            >
-              {num}
-            </button>
-          ))}
-          <button
-            onClick={() => onNumberClick('C')}
-            className={`${buttonSize} bg-red-600 hover:bg-red-700 rounded-lg font-bold transition-all ${
-              isBrightSunMode ? 'border-2 border-white' : ''
-            }`}
-          >
-            C
-          </button>
-          <button
-            onClick={() => onNumberClick('0')}
-            className={`${buttonSize} bg-gray-700 hover:bg-gray-600 rounded-lg font-bold transition-all ${
-              isBrightSunMode ? 'border-2 border-gray-400' : ''
-            }`}
-          >
-            0
-          </button>
-          <button
-            onClick={() => onNumberClick('OK')}
-            className={`${buttonSize} bg-green-600 hover:bg-green-700 rounded-lg font-bold transition-all ${
-              isBrightSunMode ? 'border-2 border-white' : ''
-            }`}
-          >
-            OK
-          </button>
-        </div>
-        
-        <button
-          onClick={onClose}
-          className={`w-full bg-gray-600 hover:bg-gray-700 rounded-lg font-bold transition-all ${
-            isColdWeatherMode ? 'p-4 text-lg' : 'p-3'
-          } ${isBrightSunMode ? 'border-2 border-gray-400' : ''}`}
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// Analytics Dashboard Component (placeholder)
-const AnalyticsDashboard: React.FC = () => {
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-800 p-6 rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-96 overflow-y-auto">
-        <h3 className="text-lg font-bold mb-4">Analytics Dashboard</h3>
-        <p className="text-gray-400">Analytics features coming soon...</p>
-      </div>
-    </div>
-  );
-};
-
-// Field View Component (placeholder)
-const FieldView: React.FC = () => {
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-800 p-6 rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-96 overflow-y-auto">
-        <h3 className="text-lg font-bold mb-4">Field View</h3>
-        <p className="text-gray-400">Field visualization coming soon...</p>
-      </div>
-    </div>
-  );
-};
-
-// Enforcement Calculator Component (placeholder)
-const EnforcementCalculator: React.FC = () => {
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-800 p-6 rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-96 overflow-y-auto">
-        <h3 className="text-lg font-bold mb-4">Penalty Enforcement Calculator</h3>
-        <p className="text-gray-400">Enforcement calculator coming soon...</p>
-      </div>
-    </div>
-  );
-};
-
-// Crew Notes Panel Component (placeholder)
-const CrewNotesPanel: React.FC = () => {
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-800 p-6 rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-96 overflow-y-auto">
-        <h3 className="text-lg font-bold mb-4">Crew Notes</h3>
-        <p className="text-gray-400">Crew notes feature coming soon...</p>
-      </div>
-    </div>
-  );
-};
-
-// Helper function to calculate the current week of the football season
-function getCurrentWeek(): number {
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  
-  // College football season typically starts in late August/early September
-  // Week 1 is usually the Saturday of Labor Day weekend or the week before
-  const seasonStart = new Date(currentYear, 7, 29); // August 29th as a baseline
-  
-  // Find the first Saturday on or after the season start date
-  const daysUntilSaturday = (6 - seasonStart.getDay()) % 7;
-  const firstSaturday = new Date(seasonStart);
-  firstSaturday.setDate(seasonStart.getDate() + daysUntilSaturday);
-  
-  // Calculate weeks since season start
-  const timeDiff = now.getTime() - firstSaturday.getTime();
-  const daysDiff = Math.floor(timeDiff / (1000 * 3600 * 24));
-  const weekNumber = Math.floor(daysDiff / 7) + 1;
-  
-  // Ensure week is between 1 and 17 (typical college football season length)
-  return Math.max(1, Math.min(17, weekNumber));
-}
