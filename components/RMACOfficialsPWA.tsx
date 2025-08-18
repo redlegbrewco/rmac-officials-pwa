@@ -2174,15 +2174,40 @@ Full intelligence dashboard available at RMAC Officials Portal.`;
   };
 
   const viewGoogleSheet = async (): Promise<void> => {
-    // For development, provide instructions on how to set up the sheet
-    const setupInstructions = `Google Sheets Integration Setup:
+    try {
+      // Check if Google Sheets is properly configured
+      const statusResponse = await fetch('/api/google-sheets-status');
+      const statusData = await statusResponse.json();
+      
+      if (statusData.configured) {
+        // Google Sheets is configured - show the actual sheet or sync data
+        const syncResponse = await fetch('/api/google-sheets-sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'view_sheet',
+            data: penalties
+          })
+        });
+        
+        const syncResult = await syncResponse.json();
+        if (syncResult.success) {
+          alert('Google Sheets integration is active! Data synced successfully.');
+        } else {
+          alert('Google Sheets sync failed: ' + syncResult.error);
+        }
+      } else {
+        // Show setup instructions for mock implementation
+        const setupInstructions = `Google Sheets Integration Setup:
 
 1. Create a Google Sheet for RMAC Officials
 2. Set up Google Sheets API credentials
 3. Share the sheet with your service account
 4. Update the API endpoint with your sheet ID
 
-Current Status: Mock implementation active
+Current Status: ${statusData.status}
 - All sync operations are logged locally
 - Real Google Sheets integration requires API setup
 - Sheet structure: Game | Date | Quarter | Time | Penalty | Player | Team | Official
@@ -2192,9 +2217,14 @@ Would you like to:
 • Get setup instructions
 • Export current penalties as CSV`;
 
-    if (confirm(setupInstructions + '\n\nClick OK to export as CSV for manual upload, Cancel to dismiss.')) {
-      // Generate CSV export
-      exportToQwikRef();
+        if (confirm(setupInstructions + '\n\nClick OK to export as CSV for manual upload, Cancel to dismiss.')) {
+          // Generate CSV export
+          exportToQwikRef();
+        }
+      }
+    } catch (error) {
+      console.error('Google Sheets status check failed:', error);
+      alert('Unable to check Google Sheets status. Please try again.');
     }
   };
   const startGameClock = () => {
