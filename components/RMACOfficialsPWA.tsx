@@ -626,6 +626,10 @@ const RMACOfficialsPWA: React.FC = () => {
   
   // UI State
   const [showNumberPad, setShowNumberPad] = useState<boolean>(false);
+  const [showInjuredNumberPad, setShowInjuredNumberPad] = useState<boolean>(false);
+  const [showHelmetOffNumberPad, setShowHelmetOffNumberPad] = useState<boolean>(false);
+  const [injuredPlayerNumber, setInjuredPlayerNumber] = useState<string>('');
+  const [helmetOffPlayerNumber, setHelmetOffPlayerNumber] = useState<string>('');
   const [sidelineMode, setSidelineMode] = useState<boolean>(false);
   const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
   const [lastDeletedPenalty, setLastDeletedPenalty] = useState<Penalty | null>(null);
@@ -4160,21 +4164,32 @@ Flow: ${gameFlow}
                     ))}
                   </div>
                 )}
-                <input
-                  type="text"
-                  placeholder="Player # injured"
-                  className="w-full mt-2 p-2 bg-gray-600 border border-gray-500 rounded text-white text-sm"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      const target = e.target as HTMLInputElement;
-                      const playerNum = target.value.trim();
-                      if (playerNum && !injuredPlayers.includes(playerNum)) {
-                        addInjuredPlayer(playerNum);
-                        target.value = '';
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Player # injured"
+                    value={injuredPlayerNumber}
+                    onChange={(e) => setInjuredPlayerNumber(e.target.value)}
+                    className="w-full mt-2 p-2 pr-12 bg-gray-600 border border-gray-500 rounded text-white text-sm text-center"
+                    maxLength={2}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        const playerNum = injuredPlayerNumber.trim();
+                        if (playerNum && !injuredPlayers.includes(playerNum)) {
+                          addInjuredPlayer(playerNum);
+                          setInjuredPlayerNumber('');
+                        }
                       }
-                    }
-                  }}
-                />
+                    }}
+                  />
+                  <button
+                    onClick={() => setShowInjuredNumberPad(true)}
+                    className="absolute right-2 top-3 p-1 bg-red-600 hover:bg-red-700 rounded text-xs"
+                    title="Number Pad"
+                  >
+                    <Calculator className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
               
               <div className="p-3 bg-gray-700 rounded-lg">
@@ -4198,21 +4213,32 @@ Flow: ${gameFlow}
                     ))}
                   </div>
                 )}
-                <input
-                  type="text"
-                  placeholder="Player # helmet off"
-                  className="w-full mt-2 p-2 bg-gray-600 border border-gray-500 rounded text-white text-sm"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      const target = e.target as HTMLInputElement;
-                      const playerNum = target.value.trim();
-                      if (playerNum && !helmetOffPlayers.includes(playerNum)) {
-                        addHelmetOffPlayer(playerNum);
-                        target.value = '';
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Player # helmet off"
+                    value={helmetOffPlayerNumber}
+                    onChange={(e) => setHelmetOffPlayerNumber(e.target.value)}
+                    className="w-full mt-2 p-2 pr-12 bg-gray-600 border border-gray-500 rounded text-white text-sm text-center"
+                    maxLength={2}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        const playerNum = helmetOffPlayerNumber.trim();
+                        if (playerNum && !helmetOffPlayers.includes(playerNum)) {
+                          addHelmetOffPlayer(playerNum);
+                          setHelmetOffPlayerNumber('');
+                        }
                       }
-                    }
-                  }}
-                />
+                    }}
+                  />
+                  <button
+                    onClick={() => setShowHelmetOffNumberPad(true)}
+                    className="absolute right-2 top-3 p-1 bg-orange-600 hover:bg-orange-700 rounded text-xs"
+                    title="Number Pad"
+                  >
+                    <Calculator className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -4884,6 +4910,168 @@ Flow: ${gameFlow}
                 className="flex-1 p-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold transition-all"
               >
                 Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Injured Player Number Pad Modal */}
+      {showInjuredNumberPad && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl shadow-xl p-6 max-w-sm w-full">
+            <h3 className="text-xl font-bold mb-4 text-center text-red-400">Injured Player Number</h3>
+            <div className="mb-4">
+              <div className="text-center text-3xl font-bold bg-gray-700 p-4 rounded-lg mb-4">
+                {injuredPlayerNumber || '00'}
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                <button
+                  key={num}
+                  onClick={() => {
+                    if (injuredPlayerNumber.length < 2) {
+                      setInjuredPlayerNumber(prev => prev + num.toString());
+                      triggerHapticFeedback('light');
+                    }
+                  }}
+                  className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold text-xl transition-all"
+                >
+                  {num}
+                </button>
+              ))}
+              <button
+                onClick={() => {
+                  setInjuredPlayerNumber('');
+                  triggerHapticFeedback('medium');
+                }}
+                className="p-4 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-xl transition-all"
+              >
+                CLR
+              </button>
+              <button
+                onClick={() => {
+                  if (injuredPlayerNumber.length < 2) {
+                    setInjuredPlayerNumber(prev => prev + '0');
+                    triggerHapticFeedback('light');
+                  }
+                }}
+                className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold text-xl transition-all"
+              >
+                0
+              </button>
+              <button
+                onClick={() => {
+                  setInjuredPlayerNumber(prev => prev.slice(0, -1));
+                  triggerHapticFeedback('light');
+                }}
+                className="p-4 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-bold text-xl transition-all"
+              >
+                ⌫
+              </button>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowInjuredNumberPad(false)}
+                className="flex-1 p-3 bg-gray-600 hover:bg-gray-700 rounded-lg font-bold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const playerNum = injuredPlayerNumber.trim();
+                  if (playerNum && !injuredPlayers.includes(playerNum)) {
+                    addInjuredPlayer(playerNum);
+                    setInjuredPlayerNumber('');
+                  }
+                  setShowInjuredNumberPad(false);
+                  triggerHapticFeedback('medium');
+                }}
+                className="flex-1 p-3 bg-red-600 hover:bg-red-700 rounded-lg font-bold transition-all"
+              >
+                Add Injured
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Helmet Off Player Number Pad Modal */}
+      {showHelmetOffNumberPad && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl shadow-xl p-6 max-w-sm w-full">
+            <h3 className="text-xl font-bold mb-4 text-center text-orange-400">Helmet Off Player Number</h3>
+            <div className="mb-4">
+              <div className="text-center text-3xl font-bold bg-gray-700 p-4 rounded-lg mb-4">
+                {helmetOffPlayerNumber || '00'}
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                <button
+                  key={num}
+                  onClick={() => {
+                    if (helmetOffPlayerNumber.length < 2) {
+                      setHelmetOffPlayerNumber(prev => prev + num.toString());
+                      triggerHapticFeedback('light');
+                    }
+                  }}
+                  className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold text-xl transition-all"
+                >
+                  {num}
+                </button>
+              ))}
+              <button
+                onClick={() => {
+                  setHelmetOffPlayerNumber('');
+                  triggerHapticFeedback('medium');
+                }}
+                className="p-4 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-xl transition-all"
+              >
+                CLR
+              </button>
+              <button
+                onClick={() => {
+                  if (helmetOffPlayerNumber.length < 2) {
+                    setHelmetOffPlayerNumber(prev => prev + '0');
+                    triggerHapticFeedback('light');
+                  }
+                }}
+                className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold text-xl transition-all"
+              >
+                0
+              </button>
+              <button
+                onClick={() => {
+                  setHelmetOffPlayerNumber(prev => prev.slice(0, -1));
+                  triggerHapticFeedback('light');
+                }}
+                className="p-4 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-bold text-xl transition-all"
+              >
+                ⌫
+              </button>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowHelmetOffNumberPad(false)}
+                className="flex-1 p-3 bg-gray-600 hover:bg-gray-700 rounded-lg font-bold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const playerNum = helmetOffPlayerNumber.trim();
+                  if (playerNum && !helmetOffPlayers.includes(playerNum)) {
+                    addHelmetOffPlayer(playerNum);
+                    setHelmetOffPlayerNumber('');
+                  }
+                  setShowHelmetOffNumberPad(false);
+                  triggerHapticFeedback('medium');
+                }}
+                className="flex-1 p-3 bg-orange-600 hover:bg-orange-700 rounded-lg font-bold transition-all"
+              >
+                Add Helmet Off
               </button>
             </div>
           </div>

@@ -77,11 +77,11 @@ export async function GET(request: NextRequest) {
         }
       ],
       crewRankings: [
-        { crewName: 'Campbell Crew', gamesOfficiated: 8, avgPenaltiesPerGame: 12.0, rating: 4.2 },
-        { crewName: 'Peterson Crew', gamesOfficiated: 7, avgPenaltiesPerGame: 11.8, rating: 4.1 },
-        { crewName: 'Johnson Crew', gamesOfficiated: 8, avgPenaltiesPerGame: 12.5, rating: 4.0 },
-        { crewName: 'Williams Crew', gamesOfficiated: 6, avgPenaltiesPerGame: 13.1, rating: 3.9 },
-        { crewName: 'Davis Crew', gamesOfficiated: 7, avgPenaltiesPerGame: 11.2, rating: 4.3 }
+        { crewName: 'Flinn Crew', gamesOfficiated: 8, avgPenaltiesPerGame: 12.0, rating: 4.2 },
+        { crewName: 'Gray Crew (Michael)', gamesOfficiated: 7, avgPenaltiesPerGame: 11.8, rating: 4.1 },
+        { crewName: 'Gray Crew (Rich)', gamesOfficiated: 8, avgPenaltiesPerGame: 12.5, rating: 4.0 },
+        { crewName: 'Bloszies Crew', gamesOfficiated: 6, avgPenaltiesPerGame: 13.1, rating: 3.9 },
+        { crewName: 'Harrison Crew', gamesOfficiated: 7, avgPenaltiesPerGame: 11.2, rating: 4.3 }
       ]
     };
 

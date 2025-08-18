@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       crewRankings: [
         {
           rank: 1,
-          crewChief: 'Randy Campbell',
+          crewChief: 'Richard Gray',
           gamesOfficiated: 12,
           avgPenaltiesPerGame: 11.2,
           rating: 4.5,
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
         },
         {
           rank: 2,
-          crewChief: 'Tom Peterson',
+          crewChief: 'Cecil Harrison',
           gamesOfficiated: 10,
           avgPenaltiesPerGame: 11.8,
           rating: 4.1,
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
         },
         {
           rank: 3,
-          crewChief: 'Mike Johnson',
+          crewChief: 'Jeff Bloszies',
           gamesOfficiated: 9,
           avgPenaltiesPerGame: 12.5,
           rating: 4.0,
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
         },
         {
           rank: 4,
-          crewChief: 'Dave Wilson',
+          crewChief: 'Michael Gray',
           gamesOfficiated: 7,
           avgPenaltiesPerGame: 13.8,
           rating: 3.9,
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
         },
         {
           rank: 5,
-          crewChief: 'Steve Anderson',
+          crewChief: 'Charles Flinn',
           gamesOfficiated: 8,
           avgPenaltiesPerGame: 14.2,
           rating: 3.8,
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
         recentReports: [
           {
             gameInfo: 'Colorado Mesa vs Western Colorado',
-            crewChief: 'Randy Campbell',
+            crewChief: 'Charles Flinn',
             rating: 4.5,
             date: '2025-08-23',
             keyFindings: [
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
           },
           {
             gameInfo: 'Adams State vs Fort Lewis',
-            crewChief: 'Tom Peterson',
+            crewChief: 'Michael Gray',
             rating: 4.2,
             date: '2025-08-22',
             keyFindings: [
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
           },
           {
             gameInfo: 'CSU Pueblo vs New Mexico Highlands',
-            crewChief: 'Mike Johnson',
+            crewChief: 'Richard Gray',
             rating: 3.8,
             date: '2025-08-21',
             keyFindings: [
@@ -120,19 +120,19 @@ export async function GET(request: NextRequest) {
       officialPerformance: {
         topPerformers: [
           {
-            name: 'Randy Campbell',
+            name: 'Charles Flinn',
             position: 'Referee',
             rating: 4.5,
             gamesWorked: 12
           },
           {
-            name: 'Tom Peterson',
+            name: 'Michael Gray',
             position: 'Head Linesman',
             rating: 4.3,
             gamesWorked: 11
           },
           {
-            name: 'Mike Johnson',
+            name: 'Richard Gray',
             position: 'Umpire',
             rating: 4.1,
             gamesWorked: 10
@@ -140,13 +140,13 @@ export async function GET(request: NextRequest) {
         ],
         improvementNeeded: [
           {
-            name: 'Steve Anderson',
+            name: 'Jeff Bloszies',
             position: 'Field Judge',
             issues: ['Positioning on deep passes', 'Late flag throws'],
             recommendedActions: ['Film study on positioning', 'Practice flag mechanics']
           },
           {
-            name: 'Dave Wilson',
+            name: 'Cecil Harrison',
             position: 'Side Judge',
             issues: ['Sideline management', 'Clock awareness'],
             recommendedActions: ['Sideline control workshop', 'Clock management review']

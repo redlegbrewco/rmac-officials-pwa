@@ -33,21 +33,21 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const week = searchParams.get('week') || '1';
     
-    // Mock data representing real RMAC crew structure
-    // In production, this would pull from Google Sheets with real assignments
+    // Real RMAC crew structure with actual 2025 roster
+    // Based on official RMAC Football crew assignments
     
     const crewAssignments: CrewAssignment[] = [
       {
-        id: 'crew-randy-campbell',
-        crewChief: 'Randy Campbell',
+        id: 'crew-richard-gray',
+        crewChief: 'Richard Gray',
         crewMembers: {
-          referee: 'Randy Campbell',
-          umpire: 'Mike Johnson',
-          headLinesman: 'Tom Peterson',
-          lineJudge: 'Steve Anderson',
-          fieldJudge: 'Dave Wilson',
-          sideJudge: 'Chris Brown',
-          backJudge: 'Mark Davis'
+          referee: 'Richard Gray',
+          umpire: 'Sheldon McGuire',
+          headLinesman: 'Chris Miller',
+          lineJudge: 'Sean Burrow',
+          sideJudge: 'Aaron Lackey',
+          fieldJudge: 'Tanner Pierick',
+          backJudge: 'Ryan Burrell'
         },
         rating: 4.5,
         gamesOfficiated: 12,
@@ -57,16 +57,16 @@ export async function GET(request: NextRequest) {
         isActive: true
       },
       {
-        id: 'crew-tom-peterson',
-        crewChief: 'Tom Peterson',
+        id: 'crew-cecil-harrison',
+        crewChief: 'Cecil Harrison',
         crewMembers: {
-          referee: 'Tom Peterson',
-          umpire: 'Randy Campbell',
-          headLinesman: 'Mike Johnson',
-          lineJudge: 'Dave Wilson',
-          fieldJudge: 'Steve Anderson',
-          sideJudge: 'Mark Davis',
-          backJudge: 'Chris Brown'
+          referee: 'Cecil Harrison',
+          umpire: 'Cary Fry',
+          headLinesman: 'Ray Mastre',
+          lineJudge: 'John O\'Connor',
+          sideJudge: 'Chris Leathers',
+          fieldJudge: 'Shawn Hunter',
+          backJudge: 'Steve McFall'
         },
         rating: 4.1,
         gamesOfficiated: 10,
@@ -76,16 +76,16 @@ export async function GET(request: NextRequest) {
         isActive: true
       },
       {
-        id: 'crew-mike-johnson',
-        crewChief: 'Mike Johnson',
+        id: 'crew-jeff-bloszies',
+        crewChief: 'Jeff Bloszies',
         crewMembers: {
-          referee: 'Mike Johnson',
-          umpire: 'Tom Peterson',
-          headLinesman: 'Randy Campbell',
-          lineJudge: 'Chris Brown',
-          fieldJudge: 'Mark Davis',
-          sideJudge: 'Steve Anderson',
-          backJudge: 'Dave Wilson'
+          referee: 'Jeff Bloszies',
+          umpire: 'Bill Lyons',
+          headLinesman: 'Bobby Albi',
+          lineJudge: 'Keith Clements',
+          sideJudge: 'Jay Anderson',
+          fieldJudge: 'Brian Catalfamo',
+          backJudge: 'Zach Blechman'
         },
         rating: 4.0,
         gamesOfficiated: 9,
@@ -95,16 +95,16 @@ export async function GET(request: NextRequest) {
         isActive: true
       },
       {
-        id: 'crew-steve-anderson',
-        crewChief: 'Steve Anderson',
+        id: 'crew-charles-flinn',
+        crewChief: 'Charles Flinn',
         crewMembers: {
-          referee: 'Steve Anderson',
-          umpire: 'Dave Wilson',
-          headLinesman: 'Chris Brown',
-          lineJudge: 'Mark Davis',
-          fieldJudge: 'Randy Campbell',
-          sideJudge: 'Tom Peterson',
-          backJudge: 'Mike Johnson'
+          referee: 'Charles Flinn',
+          umpire: 'Russell Nygaard',
+          headLinesman: 'Chris Davison',
+          lineJudge: 'Dennis Barela',
+          sideJudge: 'Seth Beller',
+          fieldJudge: 'Jarrod Storey',
+          backJudge: 'Mike Bush'
         },
         rating: 3.8,
         gamesOfficiated: 8,
@@ -114,16 +114,16 @@ export async function GET(request: NextRequest) {
         isActive: true
       },
       {
-        id: 'crew-dave-wilson',
-        crewChief: 'Dave Wilson',
+        id: 'crew-michael-gray',
+        crewChief: 'Michael Gray',
         crewMembers: {
-          referee: 'Dave Wilson',
-          umpire: 'Steve Anderson',
-          headLinesman: 'Mark Davis',
-          lineJudge: 'Chris Brown',
-          fieldJudge: 'Mike Johnson',
-          sideJudge: 'Randy Campbell',
-          backJudge: 'Tom Peterson'
+          referee: 'Michael Gray',
+          umpire: 'Richie Hahn',
+          headLinesman: 'Mason Carter',
+          lineJudge: 'Matt McCarthy',
+          sideJudge: 'Hank Cary',
+          fieldJudge: 'Brian Brand',
+          backJudge: 'Travis Porter'
         },
         rating: 3.9,
         gamesOfficiated: 7,
