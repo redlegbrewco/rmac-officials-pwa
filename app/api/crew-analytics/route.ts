@@ -13,15 +13,17 @@ export async function GET(request: NextRequest) {
       crewStats: {
         gamesOfficiated: 8,
         totalPenalties: 96,
-        averagePerGame: 12.0,
+        avgPenaltiesPerGame: 12.0,
         accuracy: 94.2,
         consistency: 87.5,
-        improvement: '+2.3%'
+        improvement: '+2.3%',
+        crewRating: 4.2
       },
       rmacOverall: {
         totalGames: 64,
         totalPenalties: 768,
-        averagePerGame: 12.0,
+        avgPenaltiesPerGame: 12.0,
+        activeCrews: 8,
         topPenalties: [
           { code: 'FST', name: 'False Start', count: 89, percentage: 11.6 },
           { code: 'HLD', name: 'Holding', count: 82, percentage: 10.7 },
@@ -73,6 +75,13 @@ export async function GET(request: NextRequest) {
           trends: ['False starts on option plays', 'Aggressive secondary'],
           discipline: 'Average'
         }
+      ],
+      crewRankings: [
+        { crewName: 'Campbell Crew', gamesOfficiated: 8, avgPenaltiesPerGame: 12.0, rating: 4.2 },
+        { crewName: 'Peterson Crew', gamesOfficiated: 7, avgPenaltiesPerGame: 11.8, rating: 4.1 },
+        { crewName: 'Johnson Crew', gamesOfficiated: 8, avgPenaltiesPerGame: 12.5, rating: 4.0 },
+        { crewName: 'Williams Crew', gamesOfficiated: 6, avgPenaltiesPerGame: 13.1, rating: 3.9 },
+        { crewName: 'Davis Crew', gamesOfficiated: 7, avgPenaltiesPerGame: 11.2, rating: 4.3 }
       ]
     };
 

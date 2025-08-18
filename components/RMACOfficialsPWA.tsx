@@ -3301,7 +3301,7 @@ Flow: ${gameFlow}
                     </div>
                     <div className="flex justify-between">
                       <span>Avg Penalties/Game:</span>
-                      <span className="font-bold">{crewAnalytics.crewStats.avgPenaltiesPerGame.toFixed(1)}</span>
+                      <span className="font-bold">{crewAnalytics.crewStats.avgPenaltiesPerGame?.toFixed(1) || '0.0'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Crew Rating:</span>
@@ -3323,7 +3323,7 @@ Flow: ${gameFlow}
                     </div>
                     <div className="flex justify-between">
                       <span>Avg Penalties/Game:</span>
-                      <span className="font-bold">{crewAnalytics.rmacOverall.avgPenaltiesPerGame.toFixed(1)}</span>
+                      <span className="font-bold">{crewAnalytics.rmacOverall.avgPenaltiesPerGame?.toFixed(1) || '0.0'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Active Crews:</span>
@@ -3374,7 +3374,7 @@ Flow: ${gameFlow}
                           <td className="p-2 font-bold">{index + 1}</td>
                           <td className="p-2">{crew.crewName}</td>
                           <td className="p-2">{crew.gamesOfficiated}</td>
-                          <td className="p-2">{crew.avgPenaltiesPerGame.toFixed(1)}</td>
+                          <td className="p-2">{crew.avgPenaltiesPerGame?.toFixed(1) || '0.0'}</td>
                           <td className="p-2 text-green-400">{crew.rating}/5.0</td>
                         </tr>
                       ))}
@@ -3759,7 +3759,7 @@ Flow: ${gameFlow}
                             style={{ width: `${value}%` }}
                           />
                         </div>
-                        <span className="text-sm font-bold">{value.toFixed(1)}</span>
+                        <span className="text-sm font-bold">{value?.toFixed(1) || '0.0'}</span>
                       </div>
                     </div>
                   ))}
@@ -4868,62 +4868,6 @@ Flow: ${gameFlow}
       {showCrewDashboard && <CrewDashboardPanel />}
 
       <div className="p-4 space-y-6">
-        {/* Game Status */}
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <Clock className="w-5 h-5" />
-            <h2 className="text-xl font-bold">Game Status</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-gray-800 p-4 rounded-lg">
-              <select 
-                value={quarter} 
-                onChange={(e) => setQuarter(e.target.value)}
-                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-lg"
-              >
-                <option value="1st">1st Quarter</option>
-                <option value="2nd">2nd Quarter</option>
-                <option value="3rd">3rd Quarter</option>
-                <option value="4th">4th Quarter</option>
-                <option value="OT">Overtime</option>
-              </select>
-            </div>
-            <div className="bg-gray-800 p-4 rounded-lg flex items-center justify-center">
-              <input
-                type="text"
-                value={gameTime}
-                onChange={(e) => setGameTime(e.target.value)}
-                className="w-full text-center text-3xl font-mono bg-transparent border-none outline-none"
-                placeholder="15:00"
-              />
-            </div>
-            <div className="bg-gray-800 p-4 rounded-lg">
-              <input
-                type="text"
-                value={down}
-                onChange={(e) => setDown(e.target.value)}
-                className="w-full text-center text-3xl font-mono bg-transparent border-none outline-none"
-                placeholder="1"
-              />
-            </div>
-            <div className="bg-gray-800 p-4 rounded-lg">
-              <input
-                type="text"
-                value={distance}
-                onChange={(e) => setDistance(e.target.value)}
-                className="w-full text-center text-3xl font-mono bg-transparent border-none outline-none"
-                placeholder="10"
-              />
-            </div>
-          </div>
-          <div className="mt-4 bg-gray-800 p-4 rounded-lg flex items-center justify-center">
-            <div className="flex items-center gap-2">
-              <MapPin className="w-5 h-5" />
-              <span className="text-3xl font-mono font-bold">{fieldPosition}</span>
-            </div>
-          </div>
-        </section>
-
         {/* Enhanced Game Clock & Management */}
         <section>
           <EnhancedGameClock />
