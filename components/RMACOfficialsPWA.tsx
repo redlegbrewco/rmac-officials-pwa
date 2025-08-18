@@ -825,7 +825,7 @@ const RMACOfficialsPWA: React.FC = () => {
   const [selectedAnalyticsWeek, setSelectedAnalyticsWeek] = useState<number>(1);
 
   // New Navigation State for Dashboard System
-  const [currentView, setCurrentView] = useState<'dashboard' | 'game' | 'weekly-games' | 'analytics' | 'crew-performance' | 'scouting-reports'>('dashboard'); // Start with dashboard
+  const [currentView, setCurrentView] = useState<'dashboard' | 'game' | 'weekly-games' | 'analytics' | 'crew-performance' | 'scouting-reports' | 'practice-setup'>('dashboard'); // Start with dashboard
   const [selectedGame, setSelectedGame] = useState<any>(null);
   const [currentWeek, setCurrentWeek] = useState<number>(1);
   const [showRMACAnalytics, setShowRMACAnalytics] = useState<boolean>(false);
@@ -4599,15 +4599,23 @@ Flow: ${gameFlow}
     </div>
   );
 
-  // Show game setup screen if no game is started
-  if (!gameStarted || !currentGame) {
+  // Show game setup screen only when explicitly requested (practice mode)
+  if (currentView === 'practice-setup') {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
         <div className="max-w-md w-full mx-4">
-          <h1 className="text-4xl font-bold text-center mb-8">RMAC Officials Assistant</h1>
+          <div className="flex items-center gap-4 mb-8">
+            <button
+              onClick={() => setCurrentView('dashboard')}
+              className="p-2 bg-gray-600 hover:bg-gray-500 rounded-lg"
+            >
+              ← Back to Dashboard
+            </button>
+            <h1 className="text-3xl font-bold">Practice Mode Setup</h1>
+          </div>
           
           <div className="bg-gray-800 p-6 rounded-xl shadow-lg">
-            <h2 className="text-2xl font-bold mb-6 text-center">Start New Game</h2>
+            <h2 className="text-2xl font-bold mb-6 text-center">Start Practice Game</h2>
             
             <div className="space-y-4">
               {/* Crew Selection */}
@@ -4738,13 +4746,16 @@ Flow: ${gameFlow}
                 )}
               </div>
 
-              {/* Start Game Button */}
+              {/* Start Practice Game Button */}
               <button 
-                onClick={startNewGame}
+                onClick={() => {
+                  startNewGame();
+                  setCurrentView('game');
+                }}
                 disabled={!selectedCrew || !selectedHomeTeam || !selectedAwayTeam}
                 className="w-full p-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:text-gray-400 rounded-lg font-bold text-xl transition-colors"
               >
-                Start Game
+                Start Practice Game
               </button>
             </div>
           </div>
@@ -5048,14 +5059,14 @@ Flow: ${gameFlow}
                   </button>
                   
                   <button 
-                    onClick={() => setCurrentView('game')}
+                    onClick={() => setCurrentView('practice-setup')}
                     className="w-full p-3 bg-green-600 hover:bg-green-700 rounded-lg text-left transition-colors"
                   >
                     <div className="flex items-center gap-2">
                       <Play className="w-4 h-4" />
-                      <span className="font-semibold">Start Game Interface</span>
+                      <span className="font-semibold">Practice Mode</span>
                     </div>
-                    <div className="text-xs opacity-75 mt-1">Full officiating tools</div>
+                    <div className="text-xs opacity-75 mt-1">Custom game setup for practice</div>
                   </button>
                 </div>
               </div>
@@ -5267,6 +5278,33 @@ Flow: ${gameFlow}
   }
 
   // Main game interface
+  
+  // If no game is selected, show a message and redirect to dashboard
+  if (!currentGame) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-center max-w-md mx-4">
+          <h2 className="text-2xl font-bold mb-4">No Game Selected</h2>
+          <p className="text-gray-400 mb-6">Please select a game from the dashboard or start a practice game.</p>
+          <div className="space-y-3">
+            <button
+              onClick={() => setCurrentView('dashboard')}
+              className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold"
+            >
+              Return to Dashboard
+            </button>
+            <button
+              onClick={() => setCurrentView('practice-setup')}
+              className="w-full px-4 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold"
+            >
+              Start Practice Game
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Header */}
