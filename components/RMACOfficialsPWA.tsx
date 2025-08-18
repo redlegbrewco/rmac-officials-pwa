@@ -18,6 +18,7 @@ import { offlineStorage, isOnline, onConnectionChange, triggerManualSync } from 
 import { driveBackup } from '@/lib/google-drive-backup';
 import WeeklyGameManagement from './WeeklyGameManagement';
 import RMACAnalyticsDashboard from './RMACAnalyticsDashboard';
+import CrewPerformancePanel from './CrewPerformancePanel';
 
 // Web Speech API type declarations
 declare global {
@@ -823,8 +824,8 @@ const RMACOfficialsPWA: React.FC = () => {
   const [rmacOverallStats, setRmacOverallStats] = useState<any>(null);
   const [selectedAnalyticsWeek, setSelectedAnalyticsWeek] = useState<number>(1);
 
-  // New Navigation State for Multi-Crew System
-  const [currentView, setCurrentView] = useState<'landing' | 'game'>('game'); // Start with game view for now
+  // New Navigation State for Dashboard System
+  const [currentView, setCurrentView] = useState<'dashboard' | 'game' | 'weekly-games' | 'analytics' | 'crew-performance' | 'scouting-reports'>('dashboard'); // Start with dashboard
   const [selectedGame, setSelectedGame] = useState<any>(null);
   const [currentWeek, setCurrentWeek] = useState<number>(1);
   const [showRMACAnalytics, setShowRMACAnalytics] = useState<boolean>(false);
@@ -4752,6 +4753,519 @@ Flow: ${gameFlow}
     );
   }
 
+  // Dashboard Landing Page Component
+  const DashboardView = () => {
+    const [quickStats, setQuickStats] = useState<any>(null);
+    const [weeklyGames, setWeeklyGames] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+      const fetchDashboardData = async () => {
+        try {
+          // Fetch current week games
+          const gamesResponse = await fetch(`/api/weekly-games?week=${currentWeek}`);
+          const gamesData = await gamesResponse.json();
+          setWeeklyGames(gamesData.games?.slice(0, 3) || []); // Show top 3 upcoming games
+
+          // Fetch quick stats
+          const analyticsResponse = await fetch('/api/rmac-analytics');
+          const analyticsData = await analyticsResponse.json();
+          setQuickStats(analyticsData);
+          
+          setLoading(false);
+        } catch (error) {
+          console.error('Dashboard data fetch error:', error);
+          setLoading(false);
+        }
+      };
+
+      fetchDashboardData();
+    }, [currentWeek]);
+
+    if (loading) {
+      return (
+        <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading RMAC Dashboard...</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen bg-gray-900 text-white">
+        {/* Dashboard Header */}
+        <header className="bg-gray-800 p-6 border-b border-gray-700">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-3xl font-bold">RMAC Officials Dashboard</h1>
+                <p className="text-gray-400 mt-1">Week {currentWeek} • {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              </div>
+              <div className="flex items-center gap-4">
+                {/* Weather Info */}
+                {weatherData && (
+                  <div className="text-right">
+                    <div className="text-sm text-gray-400">Weather</div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-lg font-semibold ${
+                        weatherMode === 'cold' ? 'text-blue-400' : 
+                        weatherMode === 'bright' ? 'text-yellow-400' : 'text-green-400'
+                      }`}>
+                        {weatherData.temperature}°F
+                      </span>
+                      {weatherData.windSpeed > 10 && (
+                        <span className="text-sm text-orange-400">Wind {weatherData.windSpeed}mph</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {/* Status */}
+                <div className="text-right">
+                  <div className="text-sm text-gray-400">Status</div>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${isOffline ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                    <span className={`font-semibold ${isOffline ? 'text-red-400' : 'text-green-400'}`}>
+                      {isOffline ? 'Offline' : 'Online'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Quick Stats Bar */}
+            {quickStats && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-gray-700 p-4 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-blue-400">{quickStats.totalGames || 0}</div>
+                  <div className="text-sm text-gray-400">Games This Week</div>
+                </div>
+                <div className="bg-gray-700 p-4 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-green-400">{quickStats.totalPenalties || 0}</div>
+                  <div className="text-sm text-gray-400">Total Penalties</div>
+                </div>
+                <div className="bg-gray-700 p-4 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-yellow-400">{quickStats.avgPenaltiesPerGame || '0.0'}</div>
+                  <div className="text-sm text-gray-400">Avg Per Game</div>
+                </div>
+                <div className="bg-gray-700 p-4 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-purple-400">{quickStats.activeCrews || 0}</div>
+                  <div className="text-sm text-gray-400">Active Crews</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </header>
+
+        {/* Main Dashboard Content */}
+        <main className="max-w-7xl mx-auto p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Left Column - Weekly Games */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Weekly Games Section */}
+              <div className="bg-gray-800 p-6 rounded-xl shadow-xl">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-blue-400 flex items-center gap-2">
+                    <Calendar className="w-7 h-7" />
+                    This Week's Games
+                  </h2>
+                  <button
+                    onClick={() => setCurrentView('weekly-games')}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-semibold transition-colors"
+                  >
+                    View All Games
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  {weeklyGames.length > 0 ? weeklyGames.map((game, index) => (
+                    <div key={game.id} className="bg-gray-700 p-4 rounded-lg border border-gray-600">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-4">
+                            <span className="font-bold text-lg">{game.awayTeam}</span>
+                            <span className="text-gray-400">@</span>
+                            <span className="font-bold text-lg">{game.homeTeam}</span>
+                          </div>
+                          <div className="text-sm text-gray-400 mt-1">
+                            {new Date(game.date).toLocaleDateString()} • {game.time} • {game.venue}
+                          </div>
+                          <div className="text-sm text-gray-500 mt-1">
+                            Crew Chief: {game.crewChief}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setCurrentGame(game);
+                            setCurrentView('game');
+                          }}
+                          className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-semibold"
+                        >
+                          Officiate Game
+                        </button>
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-center py-8 text-gray-400">
+                      <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>No games scheduled for this week</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* RMAC Analytics Preview */}
+              <div className="bg-gray-800 p-6 rounded-xl shadow-xl">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-green-400 flex items-center gap-2">
+                    <BarChart3 className="w-7 h-7" />
+                    RMAC Analytics
+                  </h2>
+                  <button
+                    onClick={() => setCurrentView('analytics')}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-semibold transition-colors"
+                  >
+                    View Full Analytics
+                  </button>
+                </div>
+                
+                {quickStats && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-700 p-4 rounded-lg">
+                      <div className="text-lg font-bold text-red-400">{quickStats.penaltyBreakdown?.offense || 0}</div>
+                      <div className="text-sm text-gray-400">Offensive Penalties</div>
+                    </div>
+                    <div className="bg-gray-700 p-4 rounded-lg">
+                      <div className="text-lg font-bold text-blue-400">{quickStats.penaltyBreakdown?.defense || 0}</div>
+                      <div className="text-sm text-gray-400">Defensive Penalties</div>
+                    </div>
+                    <div className="bg-gray-700 p-4 rounded-lg">
+                      <div className="text-lg font-bold text-yellow-400">{quickStats.topPenalty?.type || 'N/A'}</div>
+                      <div className="text-sm text-gray-400">Most Common</div>
+                    </div>
+                    <div className="bg-gray-700 p-4 rounded-lg">
+                      <div className="text-lg font-bold text-purple-400">{quickStats.avgYardsPerPenalty || '0'}</div>
+                      <div className="text-sm text-gray-400">Avg Yards</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Column - Quick Actions & Info */}
+            <div className="space-y-6">
+              
+              {/* Crew Performance */}
+              <div className="bg-gray-800 p-6 rounded-xl shadow-xl">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-yellow-400 flex items-center gap-2">
+                    <Users className="w-6 h-6" />
+                    Crew Performance
+                  </h2>
+                  <button
+                    onClick={() => setCurrentView('crew-performance')}
+                    className="text-sm text-blue-400 hover:text-blue-300"
+                  >
+                    View Details
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center p-3 bg-gray-700 rounded-lg">
+                    <span className="text-sm">Call Accuracy</span>
+                    <span className="text-green-400 font-semibold">94.2%</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-gray-700 rounded-lg">
+                    <span className="text-sm">Games This Season</span>
+                    <span className="text-blue-400 font-semibold">12</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-gray-700 rounded-lg">
+                    <span className="text-sm">Avg Penalties/Game</span>
+                    <span className="text-yellow-400 font-semibold">8.4</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Scouting Reports */}
+              <div className="bg-gray-800 p-6 rounded-xl shadow-xl">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-orange-400 flex items-center gap-2">
+                    <FileText className="w-6 h-6" />
+                    Scouting Reports
+                  </h2>
+                  <button
+                    onClick={() => setCurrentView('scouting-reports')}
+                    className="text-sm text-blue-400 hover:text-blue-300"
+                  >
+                    View All
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  <div className="p-3 bg-gray-700 rounded-lg">
+                    <div className="text-sm font-semibold">Week 1 Reports</div>
+                    <div className="text-xs text-gray-400 mt-1">3 of 5 submitted</div>
+                    <div className="w-full bg-gray-600 rounded-full h-2 mt-2">
+                      <div className="bg-orange-400 h-2 rounded-full" style={{width: '60%'}}></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="bg-gray-800 p-6 rounded-xl shadow-xl">
+                <h2 className="text-xl font-bold text-purple-400 mb-4 flex items-center gap-2">
+                  <Zap className="w-6 h-6" />
+                  Quick Actions
+                </h2>
+                <div className="space-y-3">
+                  <button 
+                    onClick={() => {
+                      setFoulRecorderMode(true);
+                      setCurrentView('game');
+                    }}
+                    className="w-full p-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg text-left transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      <span className="font-semibold">Foul Recorder Mode</span>
+                    </div>
+                    <div className="text-xs opacity-75 mt-1">Official penalty tracking</div>
+                  </button>
+                  
+                  <button 
+                    onClick={() => {
+                      setSidelineMode(true);
+                      setCurrentView('game');
+                    }}
+                    className="w-full p-3 bg-purple-600 hover:bg-purple-700 rounded-lg text-left transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4" />
+                      <span className="font-semibold">Sideline Mode</span>
+                    </div>
+                    <div className="text-xs opacity-75 mt-1">Simplified volunteer interface</div>
+                  </button>
+                  
+                  <button 
+                    onClick={() => setCurrentView('game')}
+                    className="w-full p-3 bg-green-600 hover:bg-green-700 rounded-lg text-left transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Play className="w-4 h-4" />
+                      <span className="font-semibold">Start Game Interface</span>
+                    </div>
+                    <div className="text-xs opacity-75 mt-1">Full officiating tools</div>
+                  </button>
+                </div>
+              </div>
+
+              {/* News & Updates */}
+              <div className="bg-gray-800 p-6 rounded-xl shadow-xl">
+                <h2 className="text-xl font-bold text-red-400 mb-4 flex items-center gap-2">
+                  <Bell className="w-6 h-6" />
+                  RMAC News
+                </h2>
+                <div className="space-y-3">
+                  <div className="p-3 bg-gray-700 rounded-lg">
+                    <div className="text-sm font-semibold">Rules Update</div>
+                    <div className="text-xs text-gray-400 mt-1">New targeting emphasis for 2025 season</div>
+                  </div>
+                  <div className="p-3 bg-gray-700 rounded-lg">
+                    <div className="text-sm font-semibold">Training Schedule</div>
+                    <div className="text-xs text-gray-400 mt-1">Mechanics clinic this Saturday</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  };
+
+  // Route to appropriate view based on currentView state
+  if (currentView === 'dashboard') {
+    return <DashboardView />;
+  }
+
+  if (currentView === 'weekly-games') {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white">
+        <header className="bg-gray-800 p-4 border-b border-gray-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setCurrentView('dashboard')}
+                className="flex items-center gap-2 px-3 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm font-semibold"
+              >
+                ← Back to Dashboard
+              </button>
+              <h1 className="text-2xl font-bold">Weekly Games Management</h1>
+            </div>
+          </div>
+        </header>
+        <WeeklyGameManagement 
+          onGameSelect={(game) => {
+            setCurrentGame(game);
+            setCurrentView('game');
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (currentView === 'analytics') {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white">
+        <header className="bg-gray-800 p-4 border-b border-gray-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setCurrentView('dashboard')}
+                className="flex items-center gap-2 px-3 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm font-semibold"
+              >
+                ← Back to Dashboard
+              </button>
+              <h1 className="text-2xl font-bold">RMAC Analytics</h1>
+            </div>
+          </div>
+        </header>
+        <RMACAnalyticsDashboard onClose={() => setCurrentView('dashboard')} />
+      </div>
+    );
+  }
+
+  if (currentView === 'crew-performance') {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white">
+        <header className="bg-gray-800 p-4 border-b border-gray-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setCurrentView('dashboard')}
+                className="flex items-center gap-2 px-3 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm font-semibold"
+              >
+                ← Back to Dashboard
+              </button>
+              <h1 className="text-2xl font-bold">Crew Performance</h1>
+            </div>
+          </div>
+        </header>
+        <CrewPerformancePanel />
+      </div>
+    );
+  }
+
+  if (currentView === 'scouting-reports') {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white">
+        <header className="bg-gray-800 p-4 border-b border-gray-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setCurrentView('dashboard')}
+                className="flex items-center gap-2 px-3 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm font-semibold"
+              >
+                ← Back to Dashboard
+              </button>
+              <h1 className="text-2xl font-bold">Scouting Reports</h1>
+            </div>
+          </div>
+        </header>
+        
+        <main className="max-w-7xl mx-auto p-6">
+          <div className="bg-gray-800 p-6 rounded-xl shadow-xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-orange-400 flex items-center gap-2">
+                <FileText className="w-7 h-7" />
+                Season Scouting Reports
+              </h2>
+              <button className="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg text-sm font-semibold">
+                Generate New Report
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Week 1 Report */}
+              <div className="bg-gray-700 p-6 rounded-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold">Week 1</h3>
+                  <span className="px-2 py-1 bg-green-600 text-xs rounded">Submitted</span>
+                </div>
+                <div className="text-sm text-gray-400 mb-4">
+                  <div>Games: 5</div>
+                  <div>Reports: 3 of 5</div>
+                  <div>Completion: 60%</div>
+                </div>
+                <button className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm">
+                  View Details
+                </button>
+              </div>
+              
+              {/* Week 2 Report */}
+              <div className="bg-gray-700 p-6 rounded-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold">Week 2</h3>
+                  <span className="px-2 py-1 bg-yellow-600 text-xs rounded">In Progress</span>
+                </div>
+                <div className="text-sm text-gray-400 mb-4">
+                  <div>Games: 4</div>
+                  <div>Reports: 2 of 4</div>
+                  <div>Completion: 50%</div>
+                </div>
+                <button className="w-full px-3 py-2 bg-yellow-600 hover:bg-yellow-700 rounded text-sm">
+                  Continue Report
+                </button>
+              </div>
+              
+              {/* Week 3 Report - Upcoming */}
+              <div className="bg-gray-700 p-6 rounded-lg opacity-75">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold">Week 3</h3>
+                  <span className="px-2 py-1 bg-gray-600 text-xs rounded">Upcoming</span>
+                </div>
+                <div className="text-sm text-gray-400 mb-4">
+                  <div>Games: 6</div>
+                  <div>Reports: 0 of 6</div>
+                  <div>Completion: 0%</div>
+                </div>
+                <button className="w-full px-3 py-2 bg-gray-600 rounded text-sm cursor-not-allowed" disabled>
+                  Not Available Yet
+                </button>
+              </div>
+            </div>
+            
+            {/* Recent Report Details */}
+            <div className="mt-8 bg-gray-700 p-6 rounded-lg">
+              <h3 className="text-lg font-bold mb-4 text-orange-400">Latest Report Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-semibold mb-2">Key Observations</h4>
+                  <ul className="text-sm text-gray-300 space-y-1">
+                    <li>• Consistent holding calls by LJ position</li>
+                    <li>• Improved communication between crew members</li>
+                    <li>• Weather conditions affected visibility in Q4</li>
+                    <li>• Strong penalty enforcement consistency</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-2">Areas for Improvement</h4>
+                  <ul className="text-sm text-gray-300 space-y-1">
+                    <li>• Faster signal communication</li>
+                    <li>• Better positioning on passing plays</li>
+                    <li>• More proactive crowd control</li>
+                    <li>• Enhanced replay review procedures</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   // Main game interface
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -4759,17 +5273,23 @@ Flow: ${gameFlow}
       <header className="bg-gray-800 p-4 border-b border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setCurrentView('dashboard')}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm font-semibold"
+            >
+              ← Dashboard
+            </button>
             <h1 className="text-2xl font-bold">RMAC Officials Assistant</h1>
             {/* Navigation Buttons */}
             <button
-              onClick={() => setShowWeeklyManagement(true)}
+              onClick={() => setCurrentView('weekly-games')}
               className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-semibold"
             >
               <Calendar className="w-4 h-4" />
               Weekly Games
             </button>
             <button
-              onClick={() => setShowRMACAnalytics(true)}
+              onClick={() => setCurrentView('analytics')}
               className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-semibold"
             >
               <BarChart3 className="w-4 h-4" />
