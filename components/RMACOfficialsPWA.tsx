@@ -99,16 +99,22 @@ declare var SpeechRecognition: {
 // Interfaces
 interface Penalty {
   id: number;
-  code: string;
-  name: string;
+  // QwikRef database alignment
+  quarter: string;           // QTR
+  time: string;             // Time
+  team: string;             // Team (must populate - home/away team name)
+  player: string;           // Player # 
+  code: string;             // Foul Code
+  name: string;             // Foul Description (main penalty name)
+  description: string;      // Foul Desc (detailed description: grab and restrict, takedown, etc.)
+  downDistance: string;     // D/D/YD (Down, Distance, Yard line)
+  playType: 'run' | 'pass' | 'kick' | 'other'; // Play Type
+  callingOfficial: string;  // Officials Calling (can be multiple)
+  acceptDecline: 'accepted' | 'declined' | 'pending'; // Accept/Decline
+  
+  // Existing fields we keep
   yards: number;
-  team: string;
-  player: string;
-  description: string;
-  quarter: string;
-  time: string;
-  down: string;
-  callingOfficial: string;
+  down: string;            // Keep for backwards compatibility
   fieldPosition?: number;
   voiceNote?: string;
   timestamp: string;
@@ -624,6 +630,13 @@ const RMACOfficialsPWA: React.FC = () => {
   const [currentGame, setCurrentGame] = useState<Game | null>(null);
   const [callingOfficial, setCallingOfficial] = useState<string>('R');
   
+  // New QwikRef-aligned fields
+  const [downDistance, setDownDistance] = useState<string>('1st & 10');
+  const [yardLine, setYardLine] = useState<string>('50');
+  const [playType, setPlayType] = useState<'run' | 'pass' | 'kick' | 'other'>('run');
+  const [acceptDecline, setAcceptDecline] = useState<'accepted' | 'declined' | 'pending'>('pending');
+  const [detailedDescription, setDetailedDescription] = useState<string>(''); // For specific foul descriptions
+  
   // UI State
   const [showNumberPad, setShowNumberPad] = useState<boolean>(false);
   const [showInjuredNumberPad, setShowInjuredNumberPad] = useState<boolean>(false);
@@ -1111,30 +1124,20 @@ const RMACOfficialsPWA: React.FC = () => {
       return '';
     }
 
-    // Generate CSV format that matches QwikRef table structure exactly
-    let csvData = 'Entry,Play #,QTR,Time,Team,Player #,Foul Code,Foul Desc,D/D/YD,Play Type,Officials Calling,Grade,Score,Training Tape,Comments\n';
+    // Generate CSV format that matches QwikRef database structure exactly
+    let csvData = 'QTR,Time,Team,Player #,Foul Code,Foul Desc,D/D/YD,Play Type,Officials Calling,Accept/Decline\n';
     
     penalties.forEach((penalty, index) => {
-      const entry = index + 1;
-      const playNum = entry; // Sequential play number
       const qtr = penalty.quarter;
       const time = penalty.time;
-      const team = penalty.team === 'O' ? currentGame.homeTeam : currentGame.awayTeam;
+      const team = penalty.team; // Use actual team names now
       const playerNum = penalty.player;
       const foulCode = penalty.code;
-      const foulDesc = penalty.name;
-      const downDistanceYards = `${penalty.down}/${penalty.yards}`;
-      const playType = ''; // Will be filled manually or by play analysis
+      const foulDesc = penalty.description || penalty.name; // Detailed description first, then penalty name
+      const ddyd = penalty.downDistance; // Down, Distance, Yard line
+      const playType = penalty.playType;
       const officialsCalling = penalty.callingOfficial;
-      
-      // These fields are filled by the game grader/evaluator, not the foul recorder
-      const grade = ''; // Left empty for grader to fill
-      const score = ''; // Left empty for grader to fill  
-      const trainingTape = ''; // Left empty for grader to fill
-      const comments = ''; // Left empty for grader to fill (they may add their own evaluation notes)
-      
-      // Only include foul recorder notes in a separate field if needed
-      const recorderNotes = penalty.description || penalty.voiceNote || '';
+      const acceptDecline = penalty.acceptDecline;
       
       // Escape commas and quotes for CSV
       const escapeCSV = (str: string) => {
@@ -1144,7 +1147,7 @@ const RMACOfficialsPWA: React.FC = () => {
         return str;
       };
       
-      csvData += `${entry},${playNum},${qtr},${time},${escapeCSV(team)},${playerNum},${foulCode},"${escapeCSV(foulDesc)}",${downDistanceYards},${playType},${officialsCalling},${grade},${score},${trainingTape},${comments}\n`;
+      csvData += `${qtr},${time},"${escapeCSV(team)}",${playerNum},${foulCode},"${escapeCSV(foulDesc)}","${escapeCSV(ddyd)}",${playType},"${escapeCSV(officialsCalling)}",${acceptDecline}\n`;
     });
     
     return csvData;
@@ -1371,16 +1374,22 @@ Time: ${new Date().toLocaleTimeString()}
 
     const penalty: Penalty = {
       id: Date.now(),
-      code: selectedPenalty,
-      name: fullPenaltyName,
-      yards: penaltyTypes[selectedPenalty].yards,
-      team: team,
-      player: playerNumber,
-      description: description,
+      // QwikRef database alignment
       quarter: quarter,
       time: gameTime,
-      down: `${down} & ${distance}`,
+      team: team === 'O' ? (selectedHomeTeam || customHomeTeam || 'Home') : (selectedAwayTeam || customAwayTeam || 'Away'),
+      player: playerNumber,
+      code: selectedPenalty,
+      name: fullPenaltyName,
+      description: detailedDescription || description || fullPenaltyName,
+      downDistance: `${down} & ${distance} at ${yardLine}`,
+      playType: playType,
       callingOfficial: callingOfficial,
+      acceptDecline: acceptDecline,
+      
+      // Keep existing fields for compatibility
+      yards: penaltyTypes[selectedPenalty].yards,
+      down: `${down} & ${distance}`,
       fieldPosition: fieldPosition,
       voiceNote: voiceCommand,
       timestamp: new Date().toISOString(),
@@ -3089,6 +3098,74 @@ Submitted on: ${new Date(synopsis.submittedAt).toLocaleString()}
             LOG FOUL
           </button>
         </div>
+
+        {/* QwikRef-Aligned Fields */}
+        <div className="bg-gray-600 bg-opacity-50 p-4 rounded-lg space-y-4">
+          <h4 className="text-lg font-bold text-yellow-400 mb-3">📊 QwikRef Database Fields</h4>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Play Type */}
+            <div>
+              <label className="block text-sm font-semibold mb-2 text-gray-300">Play Type</label>
+              <select
+                value={playType}
+                onChange={(e) => setPlayType(e.target.value as 'run' | 'pass' | 'kick' | 'other')}
+                className="w-full p-3 bg-gray-700 rounded-lg text-white"
+              >
+                <option value="run">Run</option>
+                <option value="pass">Pass</option>
+                <option value="kick">Kick</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            {/* Accept/Decline */}
+            <div>
+              <label className="block text-sm font-semibold mb-2 text-gray-300">Accept/Decline</label>
+              <select
+                value={acceptDecline}
+                onChange={(e) => setAcceptDecline(e.target.value as 'accepted' | 'declined' | 'pending')}
+                className="w-full p-3 bg-gray-700 rounded-lg text-white"
+              >
+                <option value="pending">Pending Decision</option>
+                <option value="accepted">Accepted</option>
+                <option value="declined">Declined</option>
+              </select>
+            </div>
+
+            {/* Yard Line */}
+            <div>
+              <label className="block text-sm font-semibold mb-2 text-gray-300">Yard Line</label>
+              <input
+                type="text"
+                value={yardLine}
+                onChange={(e) => setYardLine(e.target.value)}
+                placeholder="50, 25H, 30A"
+                className="w-full p-3 bg-gray-700 rounded-lg text-white text-center"
+              />
+            </div>
+
+            {/* Detailed Description */}
+            <div>
+              <label className="block text-sm font-semibold mb-2 text-gray-300">Detailed Description</label>
+              <input
+                type="text"
+                value={detailedDescription}
+                onChange={(e) => setDetailedDescription(e.target.value)}
+                placeholder="grab and restrict, takedown, etc."
+                className="w-full p-3 bg-gray-700 rounded-lg text-white"
+              />
+            </div>
+          </div>
+
+          {/* Down/Distance/Yard Line Preview */}
+          <div className="bg-gray-700 p-3 rounded-lg">
+            <div className="text-sm text-gray-400 mb-1">D/D/YD Preview:</div>
+            <div className="text-lg font-mono text-white">
+              {down} & {distance} at {yardLine}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Current Game Penalties - Official Format */}
@@ -3099,38 +3176,67 @@ Submitted on: ${new Date(synopsis.submittedAt).toLocaleString()}
         ) : (
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {penalties.map((penalty, index) => (
-              <div key={penalty.id} className="bg-gray-800 p-3 rounded-lg flex justify-between items-center">
-                <div className="flex-1">
-                  <div className="flex items-center gap-4">
-                    <span className="text-yellow-400 font-bold">#{penalties.length - index}</span>
-                    <span className="text-white font-medium">
-                      {penalty.quarter} {penalty.time}
-                    </span>
-                    <span className={`px-2 py-1 rounded text-sm font-bold ${
-                      penalty.team === 'O' ? 'bg-red-600' : 'bg-blue-600'
-                    } text-white`}>
-                      {penalty.code} #{penalty.player} {penalty.team === 'O' ? 'OFF' : 'DEF'}
-                    </span>
-                    <span className="text-gray-300">{penalty.yards}yd</span>
-                    <span className="text-gray-400">({penalty.callingOfficial})</span>
+              <div key={penalty.id} className="bg-gray-800 p-3 rounded-lg">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-4 mb-2">
+                      <span className="text-yellow-400 font-bold">#{penalties.length - index}</span>
+                      <span className="text-white font-medium">
+                        {penalty.quarter} {penalty.time}
+                      </span>
+                      <span className={`px-2 py-1 rounded text-sm font-bold ${
+                        penalty.team === 'O' ? 'bg-red-600' : penalty.team === 'D' ? 'bg-blue-600' : 'bg-gray-600'
+                      } text-white`}>
+                        {penalty.code} #{penalty.player}
+                      </span>
+                      <span className="text-gray-300">{penalty.yards}yd</span>
+                      <span className="text-gray-400">({penalty.callingOfficial})</span>
+                    </div>
+                    
+                    {/* QwikRef Database Fields Display */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm bg-gray-700 p-2 rounded">
+                      <div>
+                        <span className="text-gray-400">Team:</span>
+                        <span className="ml-1 text-white font-medium">{penalty.team}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">D/D/YD:</span>
+                        <span className="ml-1 text-white font-mono">{penalty.downDistance}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">Play:</span>
+                        <span className="ml-1 text-white capitalize">{penalty.playType}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">Status:</span>
+                        <span className={`ml-1 font-medium ${
+                          penalty.acceptDecline === 'accepted' ? 'text-green-400' : 
+                          penalty.acceptDecline === 'declined' ? 'text-red-400' : 'text-yellow-400'
+                        }`}>
+                          {penalty.acceptDecline}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {penalty.description && (
+                      <div className="text-sm text-gray-300 mt-2 italic">"{penalty.description}"</div>
+                    )}
                   </div>
-                  {penalty.description && (
-                    <div className="text-sm text-gray-400 mt-1">{penalty.description}</div>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setPendingCorrection(penalty.id)}
-                    className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded text-sm"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => deletePenalty(penalty.id)}
-                    className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
-                  >
-                    Delete
-                  </button>
+                  
+                  <div className="flex gap-2 ml-4">
+                    <button
+                      onClick={() => setPendingCorrection(penalty.id)}
+                      className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded text-sm"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => deletePenalty(penalty.id)}
+                      className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

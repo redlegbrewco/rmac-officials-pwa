@@ -15,17 +15,14 @@ interface RMACAnalytics {
     crewChief: string;
     gamesOfficiated: number;
     avgPenaltiesPerGame: number;
-    rating: number;
     trend: 'up' | 'down' | 'stable';
   }>;
   scoutingReports: {
     totalSubmitted: number;
     pendingReports: number;
-    avgRating: number;
     recentReports: Array<{
       gameInfo: string;
       crewChief: string;
-      rating: number;
       date: string;
       keyFindings: string[];
     }>;
@@ -46,7 +43,6 @@ interface RMACAnalytics {
     topPerformers: Array<{
       name: string;
       position: string;
-      rating: number;
       gamesWorked: number;
     }>;
     improvementNeeded: Array<{
@@ -92,12 +88,7 @@ export const RMACAnalyticsDashboard: React.FC<RMACAnalyticsDashboardProps> = ({ 
     }
   };
 
-  const getRatingColor = (rating: number) => {
-    if (rating >= 4.5) return 'text-green-400';
-    if (rating >= 4.0) return 'text-yellow-400';
-    if (rating >= 3.5) return 'text-orange-400';
-    return 'text-red-400';
-  };
+  // Removed rating system - no longer using scoring
 
   if (isLoading) {
     return (
@@ -135,7 +126,7 @@ export const RMACAnalyticsDashboard: React.FC<RMACAnalyticsDashboardProps> = ({ 
           <div className="flex gap-2 mt-4">
             {[
               { key: 'overview', label: 'Overview', icon: BarChart3 },
-              { key: 'crews', label: 'Crew Rankings', icon: Users },
+              { key: 'crews', label: 'Crew Activity', icon: Users },
               { key: 'scouting', label: 'Scouting Reports', icon: FileText },
               { key: 'trends', label: 'Penalty Trends', icon: TrendingUp },
               { key: 'officials', label: 'Official Performance', icon: Award }
@@ -194,11 +185,11 @@ export const RMACAnalyticsDashboard: React.FC<RMACAnalyticsDashboardProps> = ({ 
                   {/* Quick insights */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="bg-gray-700/30 p-4 rounded-lg">
-                      <h3 className="font-bold text-white mb-3">Top Performing Crew</h3>
+                      <h3 className="font-bold text-white mb-3">Most Active Crew Chief</h3>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-300">{analytics.crewRankings[0]?.crewChief}</span>
-                        <span className={`font-bold ${getRatingColor(analytics.crewRankings[0]?.rating || 0)}`}>
-                          {analytics.crewRankings[0]?.rating.toFixed(1)}★
+                        <span className="text-blue-400 font-bold">
+                          {analytics.crewRankings[0]?.gamesOfficiated} Games
                         </span>
                       </div>
                     </div>
@@ -206,7 +197,7 @@ export const RMACAnalyticsDashboard: React.FC<RMACAnalyticsDashboardProps> = ({ 
                     <div className="bg-gray-700/30 p-4 rounded-lg">
                       <h3 className="font-bold text-white mb-3">Scouting Reports</h3>
                       <div className="flex items-center justify-between">
-                        <span className="text-gray-300">Avg Rating: {analytics.scoutingReports.avgRating.toFixed(1)}</span>
+                        <span className="text-gray-300">Total: {analytics.scoutingReports.totalSubmitted}</span>
                         <span className="text-red-400">{analytics.scoutingReports.pendingReports} Pending</span>
                       </div>
                     </div>
@@ -217,16 +208,15 @@ export const RMACAnalyticsDashboard: React.FC<RMACAnalyticsDashboardProps> = ({ 
               {/* Crew Rankings */}
               {selectedView === 'crews' && (
                 <div className="space-y-4">
-                  <h3 className="text-xl font-bold text-white">Crew Performance Rankings</h3>
+                  <h3 className="text-xl font-bold text-white">Crew Activity Overview</h3>
                   <div className="bg-gray-700/30 rounded-lg overflow-hidden">
                     <table className="w-full">
                       <thead className="bg-gray-600">
                         <tr>
                           <th className="text-left p-4 text-gray-300">Rank</th>
                           <th className="text-left p-4 text-gray-300">Crew Chief</th>
-                          <th className="text-left p-4 text-gray-300">Games</th>
-                          <th className="text-left p-4 text-gray-300">Avg Penalties</th>
-                          <th className="text-left p-4 text-gray-300">Rating</th>
+                          <th className="text-left p-4 text-gray-300">Games Officiated</th>
+                          <th className="text-left p-4 text-gray-300">Avg Penalties/Game</th>
                           <th className="text-left p-4 text-gray-300">Trend</th>
                         </tr>
                       </thead>
@@ -235,11 +225,8 @@ export const RMACAnalyticsDashboard: React.FC<RMACAnalyticsDashboardProps> = ({ 
                           <tr key={crew.rank} className="border-b border-gray-600">
                             <td className="p-4 text-white font-bold">#{crew.rank}</td>
                             <td className="p-4 text-white">{crew.crewChief}</td>
-                            <td className="p-4 text-gray-300">{crew.gamesOfficiated}</td>
+                            <td className="p-4 text-blue-400 font-bold">{crew.gamesOfficiated}</td>
                             <td className="p-4 text-gray-300">{crew.avgPenaltiesPerGame.toFixed(1)}</td>
-                            <td className={`p-4 font-bold ${getRatingColor(crew.rating)}`}>
-                              {crew.rating.toFixed(1)}★
-                            </td>
                             <td className="p-4">{getTrendIcon(crew.trend)}</td>
                           </tr>
                         ))}
@@ -269,8 +256,8 @@ export const RMACAnalyticsDashboard: React.FC<RMACAnalyticsDashboardProps> = ({ 
                             <p className="text-sm text-gray-400">Crew Chief: {report.crewChief}</p>
                           </div>
                           <div className="text-right">
-                            <div className={`font-bold ${getRatingColor(report.rating)}`}>
-                              {report.rating.toFixed(1)}★
+                            <div className="font-bold text-blue-400">
+                              Report Submitted
                             </div>
                             <div className="text-xs text-gray-400">{report.date}</div>
                           </div>
