@@ -2575,8 +2575,8 @@ Would you like to:
 
   // Phase 8: PWA Functions
   const initializePWA = () => {
-    // Service Worker registration
-    if ('serviceWorker' in navigator) {
+    // Service Worker registration (temporarily disabled)
+    if (false && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js')
         .then((registration) => {
           console.log('SW registered: ', registration);
@@ -3293,19 +3293,19 @@ Flow: ${gameFlow}
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Games Officiated:</span>
-                      <span className="font-bold">{crewAnalytics.crewStats.gamesOfficiated}</span>
+                      <span className="font-bold">{crewAnalytics?.crewStats?.gamesOfficiated || 0}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Total Penalties:</span>
-                      <span className="font-bold">{crewAnalytics.crewStats.totalPenalties}</span>
+                      <span className="font-bold">{crewAnalytics?.crewStats?.totalPenalties || 0}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Avg Penalties/Game:</span>
-                      <span className="font-bold">{crewAnalytics.crewStats.avgPenaltiesPerGame?.toFixed(1) || '0.0'}</span>
+                      <span className="font-bold">{crewAnalytics?.crewStats?.avgPenaltiesPerGame?.toFixed(1) || '0.0'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Crew Rating:</span>
-                      <span className="font-bold text-green-400">{crewAnalytics.crewStats.crewRating}/5.0</span>
+                      <span className="font-bold text-green-400">{crewAnalytics?.crewStats?.crewRating || 0}/5.0</span>
                     </div>
                   </div>
                 </div>
@@ -3315,19 +3315,19 @@ Flow: ${gameFlow}
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Total Games:</span>
-                      <span className="font-bold">{crewAnalytics.rmacOverall.totalGames}</span>
+                      <span className="font-bold">{crewAnalytics?.rmacOverall?.totalGames || 0}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Total Penalties:</span>
-                      <span className="font-bold">{crewAnalytics.rmacOverall.totalPenalties}</span>
+                      <span className="font-bold">{crewAnalytics?.rmacOverall?.totalPenalties || 0}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Avg Penalties/Game:</span>
-                      <span className="font-bold">{crewAnalytics.rmacOverall.avgPenaltiesPerGame?.toFixed(1) || '0.0'}</span>
+                      <span className="font-bold">{crewAnalytics?.rmacOverall?.avgPenaltiesPerGame?.toFixed(1) || '0.0'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Active Crews:</span>
-                      <span className="font-bold">{crewAnalytics.rmacOverall.activeCrews}</span>
+                      <span className="font-bold">{crewAnalytics?.rmacOverall?.activeCrews || 0}</span>
                     </div>
                   </div>
                 </div>
@@ -3338,15 +3338,15 @@ Flow: ${gameFlow}
                     <div className="flex justify-between">
                       <span>Crew vs RMAC Avg:</span>
                       <span className={`font-bold ${
-                        crewAnalytics.crewStats.avgPenaltiesPerGame < crewAnalytics.rmacOverall.avgPenaltiesPerGame 
+                        (crewAnalytics?.crewStats?.avgPenaltiesPerGame || 0) < (crewAnalytics?.rmacOverall?.avgPenaltiesPerGame || 0)
                           ? 'text-green-400' : 'text-red-400'
                       }`}>
-                        {crewAnalytics.crewStats.avgPenaltiesPerGame < crewAnalytics.rmacOverall.avgPenaltiesPerGame ? 'Better' : 'Higher'}
+                        {(crewAnalytics?.crewStats?.avgPenaltiesPerGame || 0) < (crewAnalytics?.rmacOverall?.avgPenaltiesPerGame || 0) ? 'Better' : 'Higher'}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span>RMAC Ranking:</span>
-                      <span className="font-bold text-yellow-400">#{crewAnalytics.crewStats.rmacRanking}</span>
+                      <span className="font-bold text-yellow-400">#{crewAnalytics?.crewStats?.rmacRanking || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
@@ -3367,8 +3367,8 @@ Flow: ${gameFlow}
                       </tr>
                     </thead>
                     <tbody>
-                      {crewAnalytics.crewRankings.map((crew: any, index: number) => (
-                        <tr key={crew.crewId} className={`${
+                      {(crewAnalytics?.crewRankings || []).map((crew: any, index: number) => (
+                        <tr key={crew.crewId || index} className={`${
                           crew.crewId === 'current-crew' ? 'bg-blue-900 bg-opacity-50' : ''
                         } hover:bg-gray-600`}>
                           <td className="p-2 font-bold">{index + 1}</td>
@@ -3387,7 +3387,7 @@ Flow: ${gameFlow}
               <div className="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
                 <h3 className="font-bold text-blue-400 mb-3">Recent Scouting Reports</h3>
                 <div className="space-y-3">
-                  {crewAnalytics.recentScoutingReports.map((report: any, index: number) => (
+                  {(crewAnalytics?.recentScoutingReports || []).map((report: any, index: number) => (
                     <div key={index} className="bg-gray-600 bg-opacity-50 p-3 rounded">
                       <div className="flex justify-between items-start mb-2">
                         <span className="font-bold text-yellow-400">{report.gameInfo}</span>
