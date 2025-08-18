@@ -12,7 +12,7 @@ import {
   Smartphone, Headphones, Zap, Shield, Network, Database,
   PhoneCall, MessageCircle, Bell, Download, Share2, 
   HelpCircle, Book, Video, ExternalLink, Lightbulb,
-  Maximize, Brain
+  Maximize, Brain, Hand
 } from 'lucide-react';
 import { offlineStorage, isOnline, onConnectionChange, triggerManualSync } from '@/lib/offline-storage';
 import { driveBackup } from '@/lib/google-drive-backup';
@@ -110,6 +110,7 @@ interface Penalty {
   fieldPosition?: number;
   voiceNote?: string;
   timestamp: string;
+  subcategory?: string;
 }
 
 interface Game {
@@ -329,91 +330,95 @@ const RMAC_CREWS: Record<string, CrewData> = {
 };
 
 // Constants
-const penaltyTypes: Record<string, { name: string; yards: number }> = {
+const penaltyTypes: Record<string, { name: string; yards: number; subcategories?: string[] }> = {
   // 5 Yard Penalties
+  'ATR': { name: 'Assisting the Runner', yards: 5 },
+  'DOD': { name: 'Delay of Game, Defense', yards: 5 },
+  'DOG': { name: 'Delay of Game, Offense', yards: 5 },
+  'ENC': { name: 'Encroachment (Offense)', yards: 5 },
+  'EQV': { name: 'Equipment Violation', yards: 5 },
   'FST': { name: 'False Start', yards: 5 },
-  'ENC': { name: 'Encroachment', yards: 5 },
-  'OFF': { name: 'Offside', yards: 5 },
-  'DOG': { name: 'Delay of Game', yards: 5 },
-  'ILP': { name: 'Illegal Procedure', yards: 5 },
-  'ILF': { name: 'Illegal Formation', yards: 5 },
-  'ILS': { name: 'Illegal Shift', yards: 5 },
-  'ILM': { name: 'Illegal Motion', yards: 5 },
-  'SUB': { name: 'Illegal Substitution', yards: 5 },
-  'ITP': { name: 'Illegal Touch Pass', yards: 5 },
+  'IFK': { name: 'Illegal Free Kick Formation', yards: 5 },
   'IFP': { name: 'Illegal Forward Pass', yards: 5 },
-  'INP': { name: 'Ineligible Player Downfield', yards: 5 },
-  'IRV': { name: 'Illegal Receiver Downfield', yards: 5 },
-  'KOB': { name: 'Kick Out of Bounds', yards: 5 },
-  'IKF': { name: 'Illegal Kicking Formation', yards: 5 },
-  'TMO': { name: 'Too Many Players on Field', yards: 5 },
-  'USC': { name: 'Unsportsmanlike Conduct', yards: 5 },
+  'ILF': { name: 'Illegal Formation', yards: 5 },
+  'ILM': { name: 'Illegal Motion', yards: 5 },
+  'ILP': { name: 'Illegal Participation', yards: 5 },
+  'ILS': { name: 'Illegal Substitution', yards: 5 },
+  'ISH': { name: 'Illegal Shift', yards: 5 },
+  'ISP': { name: 'Illegal Snap', yards: 5 },
+  'KOB': { name: 'Free Kick Out of Bounds', yards: 5 },
+  'SLI': { name: 'Sideline Interference, 5 yards', yards: 5 },
   
   // 10 Yard Penalties
-  'HLD': { name: 'Holding', yards: 10 },
+  'BAT': { name: 'Illegal Batting', yards: 10 },
+  'DEH': { name: 'Holding, Defense', yards: 10, 
+    subcategories: ['Grab and Restrict', 'Takedown', 'Grab and Turn', 'Impeding Progress'] },
+  'IBP': { name: 'Illegal Backward Pass', yards: 10 },
+  'IDP': { name: 'Ineligible Downfield on Pass', yards: 10 },
+  'IFH': { name: 'Illegal Forward Handing', yards: 10 },
+  'IKB': { name: 'Illegally Kicking Ball', yards: 10 },
+  'ING': { name: 'Intentional Grounding', yards: 10 },
+  'ITP': { name: 'Illegal Touching of a Forward Pass', yards: 10 },
   'IUH': { name: 'Illegal Use of Hands', yards: 10 },
-  'IBK': { name: 'Illegal Block', yards: 10 },
-  'BIB': { name: 'Block in the Back', yards: 10 },
-  'TRP': { name: 'Tripping', yards: 10 },
-  'IGS': { name: 'Intentional Grounding', yards: 10 },
-  'IEB': { name: 'Illegal Equipment', yards: 10 },
-  'ILB': { name: 'Illegal Blindside Block', yards: 10 },
-  'IGF': { name: 'Illegal Grab of Facemask', yards: 10 },
+  'KIK': { name: 'Illegal Kick', yards: 10 },
+  'OFH': { name: 'Holding, Offense', yards: 10,
+    subcategories: ['Grab and Restrict', 'Takedown', 'Grab and Turn', 'Impeding Progress'] },
+  'RNH': { name: 'Running into the Kicker/Holder', yards: 10 },
   
   // 15 Yard Penalties
-  'DPI': { name: 'Defensive Pass Interference', yards: 15 },
-  'OPI': { name: 'Offensive Pass Interference', yards: 15 },
-  'PF': { name: 'Personal Foul', yards: 15 },
-  'RPS': { name: 'Roughing the Passer', yards: 15 },
-  'RKR': { name: 'Roughing the Kicker', yards: 15 },
-  'RSN': { name: 'Roughing the Snapper', yards: 15 },
-  'CLG': { name: 'Clipping', yards: 15 },
-  'CHB': { name: 'Chop Block', yards: 15 },
+  'DPI': { name: 'Pass Interference, Defense', yards: 15 },
+  'DOF': { name: 'Offside, Defense', yards: 15 },
+  'FGT': { name: 'Fighting', yards: 15 },
+  'IBB': { name: 'Illegal Block in the Back', yards: 15 },
+  'IFD': { name: 'Illegal Formation, Defense (3-on-1)', yards: 15 },
+  'IWK': { name: 'Illegal Wedge on Kickoff', yards: 15 },
   'KCI': { name: 'Kick Catch Interference', yards: 15 },
-  'IHT': { name: 'Illegal Hit on Defenseless Player', yards: 15 },
-  'TAR': { name: 'Targeting', yards: 15 },
-  'LBC': { name: 'Low Block on Change of Possession', yards: 15 },
-  'IWB': { name: 'Illegal Wedge Block', yards: 15 },
-  'FMG': { name: 'Facemask Grasp and Twist', yards: 15 },
-  'HOR': { name: 'Horse Collar Tackle', yards: 15 },
-  'UNS': { name: 'Unsportsmanlike Conduct - Major', yards: 15 },
-  'TUN': { name: 'Taunting', yards: 15 },
-  'CEL': { name: 'Excessive Celebration', yards: 15 },
-  'SPN': { name: 'Spearing', yards: 15 },
-  'BUT': { name: 'Butt Blocking', yards: 15 },
-  'KOF': { name: 'Kick Off Formation', yards: 15 },
-  'FBK': { name: 'Fair Catch Kick', yards: 15 },
-  'ICS': { name: 'Illegal Contact with Snapper', yards: 15 },
-  'ICV': { name: 'Illegal Contact with Official', yards: 15 },
-  'AFB': { name: 'Advancing a Fumble (4th down/Trydown)', yards: 15 },
+  'OFK': { name: 'Offside, Kicking Team', yards: 15 },
+  'OPI': { name: 'Pass Interference, Offense', yards: 15 },
+  'SLM': { name: 'Sideline Interference, 15 yards', yards: 15 },
+  'UFT': { name: 'Unfair Tactics', yards: 15 },
+  
+  // Personal Fouls (15 yards)
+  'PF/BBW': { name: 'Personal Foul, Blocking Below the Waist', yards: 15 },
+  'PF/BOB': { name: 'Personal Foul, Blocking Out of Bounds', yards: 15 },
+  'PF/BTH': { name: 'Personal Foul, Blow to the Head', yards: 15 },
+  'PF/CHB': { name: 'Personal Foul, Chop Block', yards: 15 },
+  'PF/CLP': { name: 'Personal Foul, Clipping', yards: 15 },
+  'PF/FMM': { name: 'Personal Foul, Face Mask', yards: 15 },
+  'PF/HCT': { name: 'Personal Foul, Horse Collar Tackle', yards: 15 },
+  'PF/HDR': { name: 'Personal Foul, Hit on Defenseless Receiver', yards: 15 },
+  'PF/HTF': { name: 'Personal Foul, Hands to the Face', yards: 15 },
+  'PF/HUR': { name: 'Personal Foul, Hurdling', yards: 15 },
+  'PF/ICS': { name: 'Personal Foul, Illegal Contact with Snapper', yards: 15 },
+  'PF/LEA': { name: 'Personal Foul, Leaping', yards: 15 },
+  'PF/LEV': { name: 'Personal Foul, Leverage', yards: 15 },
+  'PF/LTO': { name: 'Personal Foul, Late Hit Out of Bounds', yards: 15 },
+  'PF/LTP': { name: 'Personal Foul, Late Hit/Piling On', yards: 15 },
+  'PF/RFK': { name: 'Personal Foul, Roughing Free Kicker', yards: 15 },
+  'PF/RPS': { name: 'Personal Foul, Roughing the Passer', yards: 15 },
+  'PF/RRK': { name: 'Personal Foul, Roughing the Kicker/Holder', yards: 15 },
+  'PF/SKE': { name: 'Personal Foul, Striking/Kneeing/Elbowing', yards: 15 },
+  'PF/TGT': { name: 'Personal Foul, Targeting', yards: 15 },
+  'PF/TRP': { name: 'Personal Foul, Tripping', yards: 15 },
+  'PF/UNR': { name: 'Personal Foul, Other Unnecessary Roughness', yards: 15 },
+  
+  // Unsportsmanlike Conduct (15 yards)
+  'UNS/ABL': { name: 'Unsportsmanlike Conduct, Abusive Language', yards: 15 },
+  'UNS/BCH': { name: 'Unsportsmanlike Conduct, Bench', yards: 15 },
+  'UNS/DEA': { name: 'Unsportsmanlike Conduct, Delayed/Excessive Act', yards: 15 },
+  'UNS/FCO': { name: 'Forcibly Contacting an Official', yards: 15 },
+  'UNS/RHT': { name: 'Unsportsmanlike Conduct, Removal of Helmet', yards: 15 },
+  'UNS/STB': { name: 'Unsportsmanlike Conduct, Spiking/Throwing Ball', yards: 15 },
+  'UNS/TAU': { name: 'Unsportsmanlike Conduct, Taunting/Baiting', yards: 15 },
+  'UNS': { name: 'Unsportsmanlike Conduct, Other', yards: 15,
+    subcategories: ['Late Hit Out of Bounds', 'Excessive Celebration', 'Taunting', 'Bench Conduct', 'Other'] },
   
   // Special Situations
-  'SAF': { name: 'Safety', yards: 0 },
-  'FUM': { name: 'Fumble', yards: 0 },
-  'INT': { name: 'Interception', yards: 0 },
-  'TTO': { name: 'Team Timeout', yards: 0 },
-  'MTO': { name: 'Media Timeout', yards: 0 },
-  'REF': { name: 'Officials Timeout', yards: 0 },
-  'INJ': { name: 'Injury Timeout', yards: 0 },
-  'DQ': { name: 'Disqualification', yards: 0 },
-  'EJ': { name: 'Ejection', yards: 0 },
-  'WAR': { name: 'Warning', yards: 0 },
+  'DSQ': { name: 'Disqualification', yards: 0 },
   
-  // Additional NCAA Specific Penalties
-  'IPS': { name: 'Illegal Participation', yards: 15 },
-  'ISB': { name: 'Illegal Shift Before Snap', yards: 5 },
-  'ITF': { name: 'Illegal Touch of Free Kick', yards: 5 },
-  'IRF': { name: 'Illegal Recovery of Fumble', yards: 5 },
-  'IBA': { name: 'Illegal Batting', yards: 10 },
-  'IHK': { name: 'Illegal Hurdling', yards: 15 },
-  'ILL': { name: 'Illegal Leverage', yards: 15 },
-  'IPU': { name: 'Illegal Push or Pull', yards: 10 },
-  'ISC': { name: 'Illegal Snap Count', yards: 5 },
-  'ITO': { name: 'Illegal Timeout', yards: 5 },
-  'LOS': { name: 'Loss of Down', yards: 0 },
-  'NP': { name: 'No Play', yards: 0 },
-  'PEN': { name: 'Penalty Declined', yards: 0 },
-  'OFF2': { name: 'Offset Penalties', yards: 0 }
+  // Legacy codes for backward compatibility
+  'HLD': { name: 'Holding (General)', yards: 10 },
+  'PF': { name: 'Personal Foul (General)', yards: 15 }
 };
 
 const rmacTeams = [
@@ -622,6 +627,12 @@ const RMACOfficialsPWA: React.FC = () => {
   const [sidelineMode, setSidelineMode] = useState<boolean>(false);
   const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
   const [lastDeletedPenalty, setLastDeletedPenalty] = useState<Penalty | null>(null);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>('');
+  const [showSubcategoryDropdown, setShowSubcategoryDropdown] = useState<boolean>(false);
+  
+  // Voice Recording State
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [recordings, setRecordings] = useState<any[]>([]);
   
   // Connection State
   const [isOffline, setIsOffline] = useState<boolean>(false);
@@ -650,6 +661,14 @@ const RMACOfficialsPWA: React.FC = () => {
     team?: string;
   } | null>(null);
   const [lastAction, setLastAction] = useState<string>('');
+
+  // Game Management State
+  const [homeTimeouts, setHomeTimeouts] = useState<{ first: number; second: number }>({ first: 3, second: 3 });
+  const [awayTimeouts, setAwayTimeouts] = useState<{ first: number; second: number }>({ first: 3, second: 3 });
+  const [injuredPlayers, setInjuredPlayers] = useState<string[]>([]);
+  const [helmetOffPlayers, setHelmetOffPlayers] = useState<string[]>([]);
+  const [playClockTime, setPlayClockTime] = useState<number>(25);
+  const [playClockRunning, setPlayClockRunning] = useState<boolean>(false);
 
   // Crew State
   const [selectedCrew, setSelectedCrew] = useState<string>('');
@@ -767,10 +786,41 @@ const RMACOfficialsPWA: React.FC = () => {
   const [majorIncidents, setMajorIncidents] = useState<string>('');
   const [postGameNotes, setPostGameNotes] = useState<string>('');
 
+  // Enhanced Practical Features State - Focused on Foul Recorder
+  const [foulRecorderMode, setFoulRecorderMode] = useState<boolean>(false);
+  const [oneHandedMode, setOneHandedMode] = useState<boolean>(false);
+  const [quickEntryMode, setQuickEntryMode] = useState<boolean>(false);
+  const [lastPenaltyUsed, setLastPenaltyUsed] = useState<string>('');
+  const [showQuickActions, setShowQuickActions] = useState<boolean>(false);
+  const [screenBrightness, setScreenBrightness] = useState<'normal' | 'bright' | 'dim'>('normal');
+  const [pendingCorrection, setPendingCorrection] = useState<number | null>(null);
+  const [headsetNotes, setHeadsetNotes] = useState<string>('');
+  const [foulReportReady, setFoulReportReady] = useState<boolean>(false);
+
+  // Crew Analytics & Dashboard State
+  const [showCrewDashboard, setShowCrewDashboard] = useState<boolean>(false);
+  const [crewAnalytics, setCrewAnalytics] = useState<any>(null);
+  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState<boolean>(false);
+  const [rmacOverallStats, setRmacOverallStats] = useState<any>(null);
+  const [selectedAnalyticsWeek, setSelectedAnalyticsWeek] = useState<number>(1);
+
   // Refs
   const gameClockInterval = useRef<NodeJS.Timeout | null>(null);
+  const playClockInterval = useRef<NodeJS.Timeout | null>(null);
 
   const officials = ['R', 'CJ', 'U', 'HL', 'LJ', 'SJ', 'FJ', 'BJ'];
+
+  // Most common penalties for quick access (based on actual officiating data)
+  const quickPenalties = [
+    { code: 'FST', name: 'False Start', team: 'O' },
+    { code: 'HLD', name: 'Holding', team: 'O' },
+    { code: 'OFH', name: 'Offensive Holding', team: 'O' },
+    { code: 'DEH', name: 'Defensive Holding', team: 'D' },
+    { code: 'OPI', name: 'Offensive Pass Interference', team: 'O' },
+    { code: 'DPI', name: 'Defensive Pass Interference', team: 'D' },
+    { code: 'UNS', name: 'Unsportsmanlike Conduct', team: 'either' },
+    { code: 'PF/TGT', name: 'Targeting', team: 'either' }
+  ];
 
   // Core Functions
   const playSound = (type: 'whistle' | 'ding') => {
@@ -1048,18 +1098,227 @@ const RMACOfficialsPWA: React.FC = () => {
       return '';
     }
 
-    let qwikRefData = '';
+    // Generate CSV format that matches QwikRef table structure exactly
+    let csvData = 'Entry,Play #,QTR,Time,Team,Player #,Foul Code,Foul Desc,D/D/YD,Play Type,Officials Calling,Grade,Score,Training Tape,Comments\n';
     
-    qwikRefData += `GAME: ${currentGame.homeTeam} vs ${currentGame.awayTeam}\n`;
-    qwikRefData += `DATE: ${new Date(currentGame.date).toLocaleDateString()}\n`;
-    qwikRefData += `CREW: ${crewData?.name || 'N/A'}\n`;
-    qwikRefData += `TOTAL PENALTIES: ${penalties.length}\n\n`;
-    
-    penalties.forEach((penalty) => {
-      qwikRefData += `${penalty.quarter} ${penalty.time} - ${penalty.code} ${penalty.name} #${penalty.player} ${penalty.team === 'O' ? 'OFF' : 'DEF'} (${penalty.callingOfficial})\n`;
+    penalties.forEach((penalty, index) => {
+      const entry = index + 1;
+      const playNum = entry; // Sequential play number
+      const qtr = penalty.quarter;
+      const time = penalty.time;
+      const team = penalty.team === 'O' ? currentGame.homeTeam : currentGame.awayTeam;
+      const playerNum = penalty.player;
+      const foulCode = penalty.code;
+      const foulDesc = penalty.name;
+      const downDistanceYards = `${penalty.down}/${penalty.yards}`;
+      const playType = ''; // Will be filled manually or by play analysis
+      const officialsCalling = penalty.callingOfficial;
+      
+      // These fields are filled by the game grader/evaluator, not the foul recorder
+      const grade = ''; // Left empty for grader to fill
+      const score = ''; // Left empty for grader to fill  
+      const trainingTape = ''; // Left empty for grader to fill
+      const comments = ''; // Left empty for grader to fill (they may add their own evaluation notes)
+      
+      // Only include foul recorder notes in a separate field if needed
+      const recorderNotes = penalty.description || penalty.voiceNote || '';
+      
+      // Escape commas and quotes for CSV
+      const escapeCSV = (str: string) => {
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+      
+      csvData += `${entry},${playNum},${qtr},${time},${escapeCSV(team)},${playerNum},${foulCode},"${escapeCSV(foulDesc)}",${downDistanceYards},${playType},${officialsCalling},${grade},${score},${trainingTape},${comments}\n`;
     });
     
-    return qwikRefData;
+    return csvData;
+  };
+
+  // Enhanced QwikRef export with Google Sheets backup
+  const exportToQwikRef = async (): Promise<void> => {
+    if (!currentGame || penalties.length === 0) {
+      alert('No penalties to export');
+      return;
+    }
+
+    try {
+      const csvData = generateQwikRefFormat();
+      
+      // Copy to clipboard for manual paste into QwikRef
+      await navigator.clipboard.writeText(csvData);
+      
+      // Also save to Google Sheets as backup/review copy
+      if (realTimeSheetsSync) {
+        await syncToSheetsRealTime({
+          action: 'export_qwikref',
+          gameId: currentGame.id,
+          data: csvData,
+          timestamp: new Date().toISOString()
+        } as any);
+      }
+      
+      setCopiedIndex('qwikref-export');
+      setTimeout(() => setCopiedIndex(null), 5000);
+      playSound('ding');
+      
+      // Generate quick summary for verification
+      const summary = `
+QwikRef Export Ready!
+Game: ${currentGame.homeTeam} vs ${currentGame.awayTeam}
+Total Fouls: ${penalties.length}
+Offensive: ${penalties.filter(p => p.team === 'O').length}
+Defensive: ${penalties.filter(p => p.team === 'D').length}
+
+Data copied to clipboard - ready to paste into QwikRef!
+      `.trim();
+      
+      alert(summary);
+      setFoulReportReady(true);
+      
+    } catch (err) {
+      console.error('QwikRef export failed:', err);
+      alert('Export failed - check clipboard permissions');
+    }
+  };
+
+  // Team Scouting Report Generator
+  const generateScoutingReport = async (teamName: string): Promise<string> => {
+    const teamPenalties = penalties.filter(p => 
+      (p.team === 'O' ? currentGame?.homeTeam : currentGame?.awayTeam) === teamName
+    );
+
+    const report = `
+RMAC SCOUTING REPORT
+Team: ${teamName}
+Game: ${currentGame?.homeTeam} vs ${currentGame?.awayTeam}
+Date: ${new Date().toLocaleDateString()}
+Crew: ${crewData?.name || 'N/A'}
+
+PENALTY SUMMARY:
+Total Penalties: ${teamPenalties.length}
+Total Yards: ${teamPenalties.reduce((sum, p) => sum + p.yards, 0)}
+
+COMMON PENALTIES:
+${Object.entries(
+  teamPenalties.reduce((acc, p) => {
+    acc[p.code] = (acc[p.code] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>)
+).sort(([,a], [,b]) => b - a).slice(0, 5).map(([code, count]) => 
+  `• ${code} (${penaltyTypes[code]?.name || code}): ${count} times`
+).join('\n')}
+
+SITUATIONAL TRENDS:
+• Red Zone Penalties: ${teamPenalties.filter(p => (p.fieldPosition || 50) <= 20 || (p.fieldPosition || 50) >= 80).length}
+• 3rd Down Penalties: ${teamPenalties.filter(p => p.down.includes('3')).length}
+• Late Game (4th Qtr): ${teamPenalties.filter(p => p.quarter === '4th').length}
+
+OFFICIALS NOTES:
+${teamPenalties.filter(p => p.description).map(p => `• ${p.description}`).join('\n') || 'No specific notes'}
+
+RECOMMENDATIONS FOR OTHER CREWS:
+• Watch for patterns in ${teamPenalties.slice(0, 3).map(p => p.code).join(', ')}
+• Team discipline level: ${teamPenalties.length <= 3 ? 'High' : teamPenalties.length <= 6 ? 'Average' : 'Needs Attention'}
+
+Generated: ${new Date().toLocaleString()}
+    `.trim();
+
+    return report;
+  };
+
+  // Quick Post-Game Report to Coordinator
+  const sendQuickPostGameReport = async (): Promise<void> => {
+    if (!currentGame || !crewData) {
+      alert('Game data not available');
+      return;
+    }
+
+    setIsSendingEmail(true);
+    
+    try {
+      // Generate quick summary
+      const homeTeamReport = await generateScoutingReport(currentGame.homeTeam);
+      const awayTeamReport = await generateScoutingReport(currentGame.awayTeam);
+      
+      const quickReport = `
+RMAC POST-GAME QUICK REPORT
+${currentGame.homeTeam} vs ${currentGame.awayTeam}
+${new Date().toLocaleDateString()}
+
+GAME SUMMARY:
+• Total Penalties: ${penalties.length}
+• Game Flow: ${gameFlow.toUpperCase()}
+• Crew Performance: ${crewPerformanceRating}/10
+• Major Incidents: ${majorIncidents || 'None'}
+
+PENALTY BREAKDOWN:
+• ${currentGame.homeTeam}: ${penalties.filter(p => p.team === 'O').length} penalties
+• ${currentGame.awayTeam}: ${penalties.filter(p => p.team === 'D').length} penalties
+
+${majorIncidents ? `INCIDENTS:\n${majorIncidents}\n` : ''}
+
+CREW NOTES:
+${postGameNotes || 'No additional notes'}
+
+QwikRef data has been prepared and will be uploaded shortly.
+
+Submitted by: ${crewData.name}
+Time: ${new Date().toLocaleTimeString()}
+      `.trim();
+
+      // Send to coordinator
+      const response = await fetch('/api/send-post-game-synopsis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: emailSettings.supervisorEmails,
+          cc: emailSettings.crewChiefEmails,
+          subject: `Quick Report: ${currentGame.homeTeam} vs ${currentGame.awayTeam}`,
+          body: quickReport,
+          attachments: [{
+            filename: `${currentGame.homeTeam}_vs_${currentGame.awayTeam}_ScoutingReports.txt`,
+            content: `${homeTeamReport}\n\n---\n\n${awayTeamReport}`
+          }]
+        })
+      });
+
+      if (response.ok) {
+        alert('Quick report sent! Safe travels to the locker room.');
+        setLastEmailSent(new Date().toISOString());
+        
+        // Also save scouting reports to Google Drive for other crews
+        if (autoBackupEnabled) {
+          await fetch('/api/backup-to-drive', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'scouting_reports',
+              gameId: currentGame.id,
+              homeTeamReport,
+              awayTeamReport,
+              timestamp: new Date().toISOString()
+            })
+          });
+        }
+      } else {
+        throw new Error('Failed to send quick report');
+      }
+    } catch (error) {
+      console.error('Quick report failed:', error);
+      alert('Failed to send quick report. You can still copy the data manually.');
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  // Helper function to reuse last penalty
+  const useLastPenalty = () => {
+    if (lastPenaltyUsed) {
+      setSelectedPenalty(lastPenaltyUsed);
+    }
   };
 
   const copyQwikRefData = async (): Promise<void> => {
@@ -1082,16 +1341,25 @@ const RMACOfficialsPWA: React.FC = () => {
       return;
     }
 
+    // Check if penalty requires subcategory selection
+    const penaltyDef = penaltyTypes[selectedPenalty];
+    if (penaltyDef?.subcategories && penaltyDef.subcategories.length > 0 && !selectedSubcategory) {
+      alert('Please select a subcategory for this penalty');
+      return;
+    }
+
     const playerNum = parseInt(playerNumber);
     if (isNaN(playerNum) || playerNum < 0 || playerNum > 99) {
       alert('Please enter a valid player number (0-99)');
       return;
     }
 
+    const fullPenaltyName = getFullPenaltyName(selectedPenalty, selectedSubcategory);
+
     const penalty: Penalty = {
       id: Date.now(),
       code: selectedPenalty,
-      name: penaltyTypes[selectedPenalty].name,
+      name: fullPenaltyName,
       yards: penaltyTypes[selectedPenalty].yards,
       team: team,
       player: playerNumber,
@@ -1102,7 +1370,8 @@ const RMACOfficialsPWA: React.FC = () => {
       callingOfficial: callingOfficial,
       fieldPosition: fieldPosition,
       voiceNote: voiceCommand,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      subcategory: selectedSubcategory || undefined
     };
 
     const newPenalties = [penalty, ...penalties];
@@ -1165,6 +1434,9 @@ const RMACOfficialsPWA: React.FC = () => {
     setDescription('');
     setShowNumberPad(false);
     setVoiceCommand('');
+    setSelectedSubcategory('');
+    setShowSubcategoryDropdown(false);
+    setLastPenaltyUsed(selectedPenalty); // Remember last penalty for quick repeat
   };
 
   // Enhanced sync function to work with queue system
@@ -1260,6 +1532,148 @@ const RMACOfficialsPWA: React.FC = () => {
     }, 100);
   };
 
+  // Enhanced Practical Functions for Foul Recorder
+  const quickPenaltyEntry = async (penaltyCode: string, playerNum: string, teamSide: string, officialId: string): Promise<void> => {
+    // Streamlined entry for headset communications
+    const penalty: Penalty = {
+      id: Date.now(),
+      code: penaltyCode,
+      name: penaltyTypes[penaltyCode]?.name || penaltyCode,
+      yards: penaltyTypes[penaltyCode]?.yards || 0,
+      team: teamSide,
+      player: playerNum,
+      description: headsetNotes,
+      quarter: quarter,
+      time: gameTime,
+      down: `${down} & ${distance}`,
+      callingOfficial: officialId,
+      fieldPosition: fieldPosition,
+      timestamp: new Date().toISOString()
+    };
+
+    const newPenalties = [penalty, ...penalties];
+    setPenalties(newPenalties);
+    setLastPenaltyUsed(penaltyCode);
+    
+    playSound('whistle');
+    triggerHapticFeedback('medium');
+    
+    // Clear headset notes for next entry
+    setHeadsetNotes('');
+    
+    // Auto-save for foul recorder
+    try {
+      await offlineStorage.queuePenalty(penalty);
+      // Update foul report status
+      setFoulReportReady(true);
+    } catch (error) {
+      console.error('Failed to save penalty:', error);
+    }
+  };
+
+  const correctLastPenalty = (penaltyId: number, field: string, newValue: string): void => {
+    setPenalties(prev => prev.map(p => 
+      p.id === penaltyId ? { ...p, [field]: newValue } : p
+    ));
+    triggerHapticFeedback('light');
+    playSound('ding');
+  };
+
+  const generateOfficialFoulReport = (): string => {
+    if (!currentGame || penalties.length === 0) {
+      return 'No penalties to report';
+    }
+
+    let report = '';
+    
+    // Header
+    report += `OFFICIAL FOUL REPORT\n`;
+    report += `Game: ${currentGame.homeTeam} vs ${currentGame.awayTeam}\n`;
+    report += `Date: ${new Date(currentGame.date).toLocaleDateString()}\n`;
+    report += `Crew: ${crewData?.name || 'N/A'}\n`;
+    report += `Total Fouls: ${penalties.length}\n\n`;
+    
+    // Penalties by quarter for official report
+    ['1st', '2nd', '3rd', '4th', 'OT'].forEach(qtr => {
+      const quarterPenalties = penalties.filter(p => p.quarter === qtr);
+      if (quarterPenalties.length > 0) {
+        report += `${qtr} QUARTER (${quarterPenalties.length} fouls):\n`;
+        quarterPenalties.forEach((penalty, index) => {
+          report += `${index + 1}. ${penalty.time} - ${penalty.code} #${penalty.player} ${penalty.team === 'O' ? 'OFF' : 'DEF'} ${penalty.yards}yd (${penalty.callingOfficial})\n`;
+        });
+        report += `\n`;
+      }
+    });
+    
+    // Summary for conference/NCAA
+    report += `SUMMARY:\n`;
+    const offensiveFouls = penalties.filter(p => p.team === 'O').length;
+    const defensiveFouls = penalties.filter(p => p.team === 'D').length;
+    report += `Offensive: ${offensiveFouls}, Defensive: ${defensiveFouls}\n`;
+    
+    // Official signatures section
+    report += `\nCREW VERIFICATION:\n`;
+    report += `Referee: ________________\n`;
+    report += `Umpire: ________________\n`;
+    report += `Recorded by: ${callingOfficial} at ${new Date().toLocaleTimeString()}\n`;
+    
+    return report;
+  };
+
+  const exportForQwikRef = async (): Promise<void> => {
+    const qwikRefData = generateQwikRefFormat();
+    const officialReport = generateOfficialFoulReport();
+    
+    try {
+      // Copy both formats to clipboard
+      const exportData = `${qwikRefData}\n\n--- OFFICIAL REPORT ---\n\n${officialReport}`;
+      await navigator.clipboard.writeText(exportData);
+      
+      setCopiedIndex('export');
+      setTimeout(() => setCopiedIndex(null), 3000);
+      playSound('ding');
+      
+      // Mark as ready for upload
+      setFoulReportReady(true);
+      
+    } catch (err) {
+      console.error('Failed to export:', err);
+      alert('Export failed - check clipboard permissions');
+    }
+  };
+
+  const toggleFoulRecorderMode = () => {
+    setFoulRecorderMode(!foulRecorderMode);
+    // Enable optimizations for foul recorder
+    if (!foulRecorderMode) {
+      setLargeButtonMode(true); // Easier to hit while moving
+      setSidelineMode(true); // Enable sideline optimizations
+    }
+    localStorage.setItem('foul_recorder_mode', (!foulRecorderMode).toString());
+    triggerHapticFeedback('medium');
+  };
+
+  const adjustScreenBrightness = () => {
+    const modes: Array<'normal' | 'bright' | 'dim'> = ['normal', 'bright', 'dim'];
+    const currentIndex = modes.indexOf(screenBrightness);
+    const nextMode = modes[(currentIndex + 1) % modes.length];
+    setScreenBrightness(nextMode);
+    
+    // Apply brightness to document
+    const brightness = {
+      normal: '1',
+      bright: '1.3',
+      dim: '0.7'
+    };
+    document.documentElement.style.filter = `brightness(${brightness[nextMode]})`;
+    localStorage.setItem('screen_brightness', nextMode);
+  };
+
+  const quickTeamToggle = () => {
+    setTeam(team === 'O' ? 'D' : 'O');
+    triggerHapticFeedback('light');
+  };
+
   // Phase 6: Custom team functions
   const saveCustomTeam = (teamName: string): string => {
     const trimmedName = teamName.trim();
@@ -1276,6 +1690,32 @@ const RMACOfficialsPWA: React.FC = () => {
     localStorage.setItem('rmac_custom_teams', JSON.stringify(updatedHistory));
     
     return formattedName;
+  };
+
+  // Penalty subcategory functions
+  const handlePenaltySelection = (penaltyCode: string) => {
+    setSelectedPenalty(penaltyCode);
+    
+    // Check if penalty has subcategories
+    const penalty = penaltyTypes[penaltyCode];
+    if (penalty?.subcategories && penalty.subcategories.length > 0) {
+      setShowSubcategoryDropdown(true);
+      setSelectedSubcategory('');
+    } else {
+      setShowSubcategoryDropdown(false);
+      setSelectedSubcategory('');
+    }
+  };
+
+  const getFullPenaltyName = (code: string, subcategory?: string): string => {
+    const penalty = penaltyTypes[code];
+    if (!penalty) return code;
+    
+    if (subcategory && penalty.subcategories?.includes(subcategory)) {
+      return `${penalty.name} (${subcategory})`;
+    }
+    
+    return penalty.name;
   };
 
   const handleHomeTeamChange = (value: string) => {
@@ -1403,26 +1843,48 @@ const RMACOfficialsPWA: React.FC = () => {
     }
   }, []);
 
-  // Phase 5: Game Clock Management (fix existing useEffect)
+  // Phase 5: Game Clock Management (enhanced functionality)
   useEffect(() => {
-    if (gameClockRunning && sidelineMode) {
+    if (gameClockRunning) {
       gameClockInterval.current = setInterval(() => {
         setGameClockTime(prev => {
           let newSeconds = prev.seconds - 1;
           let newMinutes = prev.minutes;
-          
+          let newQuarter = prev.quarter;
+
           if (newSeconds < 0) {
             newSeconds = 59;
-            newMinutes = Math.max(0, prev.minutes - 1);
+            newMinutes = prev.minutes - 1;
           }
-          
-          if (newMinutes === 0 && newSeconds === 0) {
+
+          if (newMinutes < 0) {
+            // End of quarter
             setGameClockRunning(false);
-            setLastAction(`End of Q${prev.quarter}`);
+            playSound('whistle');
+            triggerHapticFeedback('heavy');
+            
+            if (newQuarter < 4) {
+              // Move to next quarter
+              newQuarter = prev.quarter + 1;
+              newMinutes = 15;
+              newSeconds = 0;
+              setLastAction(`End of Q${prev.quarter} - Start Q${newQuarter}`);
+              
+              // Reset timeouts at halftime (after Q2)
+              if (prev.quarter === 2) {
+                setHomeTimeouts(prev => ({ ...prev, second: 3 }));
+                setAwayTimeouts(prev => ({ ...prev, second: 3 }));
+              }
+            } else {
+              // End of regulation
+              newMinutes = 0;
+              newSeconds = 0;
+              setLastAction('End of Regulation');
+            }
           }
-          
+
           return {
-            ...prev,
+            quarter: newQuarter,
             minutes: newMinutes,
             seconds: newSeconds
           };
@@ -1439,7 +1901,430 @@ const RMACOfficialsPWA: React.FC = () => {
         clearInterval(gameClockInterval.current);
       }
     };
-  }, [gameClockRunning, sidelineMode]);
+  }, [gameClockRunning]);
+
+  // Play Clock useEffect
+  useEffect(() => {
+    if (playClockRunning && playClockTime > 0) {
+      playClockInterval.current = setInterval(() => {
+        setPlayClockTime(prev => {
+          const newTime = prev - 1;
+          if (newTime <= 0) {
+            setPlayClockRunning(false);
+            setLastAction('Play Clock Expired');
+            triggerHapticFeedback('heavy');
+            playSound('whistle');
+            return 0;
+          }
+          return newTime;
+        });
+      }, 1000);
+    } else {
+      if (playClockInterval.current) {
+        clearInterval(playClockInterval.current);
+      }
+    }
+
+    return () => {
+      if (playClockInterval.current) {
+        clearInterval(playClockInterval.current);
+      }
+    };
+  }, [playClockRunning, playClockTime]);
+
+  // Voice Notes Functions
+  const startRecording = () => {
+    setIsRecording(true);
+    triggerHapticFeedback('medium');
+    // TODO: Implement actual voice recording functionality
+    console.log('Voice recording started');
+  };
+
+  const stopRecording = () => {
+    setIsRecording(false);
+    triggerHapticFeedback('light');
+    // TODO: Implement actual voice recording stop and save
+    console.log('Voice recording stopped');
+  };
+
+  const startVoiceNote = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
+
+  // Enforcement Actions Functions
+  const openEnforcementTools = () => {
+    const actions = [
+      'Player Warning',
+      'Player Ejection', 
+      'Coach Warning',
+      'Coach Ejection',
+      'Crew Conference',
+      'Game Suspension'
+    ];
+    
+    const action = prompt(`Select enforcement action:\n${actions.map((a, i) => `${i + 1}. ${a}`).join('\n')}\n\nEnter number (1-${actions.length}):`);
+    
+    if (action && parseInt(action) >= 1 && parseInt(action) <= actions.length) {
+      const selectedAction = actions[parseInt(action) - 1];
+      const details = prompt(`${selectedAction} details (player #, reason, etc.):`);
+      
+      if (details) {
+        // TODO: Send to enforcement logging system
+        alert(`Enforcement Action Logged:\n${selectedAction}\nDetails: ${details}\n\nThis will be sent to RMAC headquarters.`);
+        
+        // Add to penalties array as enforcement action
+        const enforcementRecord = {
+          id: Date.now(),
+          code: 'ENF',
+          name: selectedAction,
+          player: details.match(/\d+/)?.[0] || 'N/A',
+          team: team,
+          quarter: quarter,
+          time: gameTime,
+          down: down,
+          fieldPosition: fieldPosition,
+          yards: 0, // Default yards for enforcement actions
+          description: details,
+          callingOfficial: callingOfficial,
+          timestamp: new Date().toISOString()
+        };
+        
+        setPenalties(prev => [...prev, enforcementRecord]);
+      }
+    }
+  };
+
+  // Notes Functions  
+  const openNotesPanel = () => {
+    const noteTypes = [
+      'Game Observation',
+      'Crew Communication', 
+      'Weather Update',
+      'Injury Report',
+      'Equipment Issue',
+      'Other'
+    ];
+    
+    const noteType = prompt(`Select note type:\n${noteTypes.map((n, i) => `${i + 1}. ${n}`).join('\n')}\n\nEnter number (1-${noteTypes.length}):`);
+    
+    if (noteType && parseInt(noteType) >= 1 && parseInt(noteType) <= noteTypes.length) {
+      const selectedType = noteTypes[parseInt(noteType) - 1];
+      const noteText = prompt(`Enter ${selectedType}:`);
+      
+      if (noteText) {
+        // TODO: Save to notes system
+        alert(`Note Saved:\nType: ${selectedType}\nTime: ${quarter} - ${gameTime}\nNote: ${noteText}\n\nThis will be included in the game report.`);
+        
+        // Add to penalties array as a note
+        const noteRecord = {
+          id: Date.now(),
+          code: 'NOTE',
+          name: selectedType,
+          player: 'N/A',
+          team: 'N/A',
+          quarter: quarter,
+          time: gameTime,
+          down: down,
+          fieldPosition: fieldPosition,
+          yards: 0, // Default yards for notes
+          description: noteText,
+          callingOfficial: callingOfficial,
+          timestamp: new Date().toISOString()
+        };
+        
+        setPenalties(prev => [...prev, noteRecord]);
+      }
+    }
+  };
+
+  // Intelligence Functions
+  const contributeIntelligence = async (): Promise<void> => {
+    console.log('CONTRIBUTE INTELLIGENCE CLICKED!'); // Debug log
+    const intelligenceTypes = [
+      'Player Tendency',
+      'Coach Behavior', 
+      'Team Pattern',
+      'Equipment Issue',
+      'Weather/Field Condition',
+      'Other Observation'
+    ];
+    
+    const type = prompt(`What type of intelligence to contribute?\n${intelligenceTypes.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nEnter number (1-${intelligenceTypes.length}):`);
+    
+    if (type && parseInt(type) >= 1 && parseInt(type) <= intelligenceTypes.length) {
+      const selectedType = intelligenceTypes[parseInt(type) - 1];
+      const details = prompt(`Enter ${selectedType} details:`);
+      
+      if (details) {
+        try {
+          const response = await fetch('/api/update-rmac-intelligence', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: selectedType,
+              details: details,
+              game: `${currentGame?.homeTeam} vs ${currentGame?.awayTeam}`,
+              quarter: quarter,
+              time: gameTime,
+              official: callingOfficial,
+              timestamp: new Date().toISOString()
+            })
+          });
+          
+          if (response.ok) {
+            alert(`Intelligence contributed successfully!\nType: ${selectedType}\nDetails: ${details}\n\nThis has been shared with all RMAC crews.`);
+          } else {
+            throw new Error('Failed to submit');
+          }
+        } catch (error) {
+          alert('Failed to contribute intelligence. Please try again later.');
+        }
+      }
+    }
+  };
+
+  // Google Sheets Functions
+  const syncToGoogleSheets = async (): Promise<void> => {
+    if (penalties.length === 0) {
+      alert('No penalties to sync. Add some penalties first.');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/google-sheets-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'sync_penalties',
+          data: {
+            game: `${currentGame?.homeTeam} vs ${currentGame?.awayTeam}`,
+            date: new Date().toLocaleDateString(),
+            penalties: penalties,
+            quarter: quarter,
+            time: gameTime
+          }
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`Successfully synced ${penalties.length} penalties to Google Sheets!\n\nSheet has been updated with all current game data.`);
+        setRealTimeSheetsSync(true); // Enable real-time sync for future penalties
+      } else {
+        throw new Error(result.error || 'Sync failed');
+      }
+    } catch (error) {
+      alert('Failed to sync to Google Sheets. Please check your connection and try again.');
+      console.error('Sheets sync error:', error);
+    }
+  };
+
+  const viewMasterIntelligence = async (): Promise<void> => {
+    try {
+      const response = await fetch('/api/get-rmac-intelligence');
+      const result = await response.json();
+      
+      if (result.success) {
+        const data = result.data;
+        const displayText = `RMAC Master Intelligence Dashboard
+
+🔍 CURRENT FOCUS AREAS:
+${data.currentFocus.map((item: any) => `• ${item.team} ${item.player !== 'N/A' ? item.player + ' - ' : ''}${item.issue}`).join('\n')}
+
+📊 THIS WEEK'S TRENDS:
+• Offensive holding ${data.weeklyTrends.offensiveHolding.change}
+• DPI calls ${data.weeklyTrends.dpi.change}
+• False starts ${data.weeklyTrends.falseStart.change}
+• Weather delays: ${data.weeklyTrends.weatherDelays.count} games
+
+🎯 CREW ALERTS:
+${data.crewAlerts.map((alert: string) => `• ${alert}`).join('\n')}
+
+📡 RECENT NETWORK REPORTS:
+${data.recentReports.map((report: any) => `• ${report.crewId}: "${report.report}" (${report.time})`).join('\n')}
+
+Full intelligence dashboard available at RMAC Officials Portal.`;
+
+        alert(displayText);
+      } else {
+        throw new Error(result.error || 'Failed to fetch intelligence');
+      }
+    } catch (error) {
+      alert('Unable to access master intelligence. Please check your connection.');
+      console.error('Intelligence fetch error:', error);
+    }
+  };
+
+  const viewGoogleSheet = async (): Promise<void> => {
+    // For development, provide instructions on how to set up the sheet
+    const setupInstructions = `Google Sheets Integration Setup:
+
+1. Create a Google Sheet for RMAC Officials
+2. Set up Google Sheets API credentials
+3. Share the sheet with your service account
+4. Update the API endpoint with your sheet ID
+
+Current Status: Mock implementation active
+- All sync operations are logged locally
+- Real Google Sheets integration requires API setup
+- Sheet structure: Game | Date | Quarter | Time | Penalty | Player | Team | Official
+
+Would you like to:
+• View mock data structure
+• Get setup instructions
+• Export current penalties as CSV`;
+
+    if (confirm(setupInstructions + '\n\nClick OK to export as CSV for manual upload, Cancel to dismiss.')) {
+      // Generate CSV export
+      exportToQwikRef();
+    }
+  };
+  const startGameClock = () => {
+    console.log('START GAME CLOCK CLICKED!'); // Debug log
+    setGameClockRunning(true);
+    setLastAction('Clock Started');
+    triggerHapticFeedback('light');
+  };
+
+  const stopGameClock = () => {
+    setGameClockRunning(false);
+    setLastAction('Clock Stopped');
+    triggerHapticFeedback('light');
+  };
+
+  const resetGameClock = () => {
+    setGameClockRunning(false);
+    setGameClockTime({ quarter: 1, minutes: 15, seconds: 0 });
+    setGameTime('15:00');
+    setQuarter('1st');
+    setLastAction('Clock Reset');
+    triggerHapticFeedback('medium');
+  };
+
+  const setClockTime = (minutes: number, seconds: number) => {
+    setGameClockTime(prev => ({
+      ...prev,
+      minutes,
+      seconds
+    }));
+    // Also update the string format for compatibility
+    setGameTime(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+    setLastAction(`Clock set to ${minutes}:${seconds.toString().padStart(2, '0')}`);
+    triggerHapticFeedback('light');
+  };
+
+  const nextQuarter = () => {
+    setGameClockTime(prev => ({
+      quarter: prev.quarter < 4 ? prev.quarter + 1 : prev.quarter,
+      minutes: 15,
+      seconds: 0
+    }));
+    setGameClockRunning(false);
+    
+    // Update string format
+    const newQuarter = gameClockTime.quarter < 4 ? gameClockTime.quarter + 1 : gameClockTime.quarter;
+    setQuarter(newQuarter === 1 ? '1st' : newQuarter === 2 ? '2nd' : newQuarter === 3 ? '3rd' : '4th');
+    setGameTime('15:00');
+    setLastAction(`Advanced to Q${newQuarter}`);
+    triggerHapticFeedback('medium');
+  };
+
+  // Game Management Functions
+  const useTimeout = (team: 'home' | 'away') => {
+    const currentHalf = gameClockTime.quarter <= 2 ? 'first' : 'second';
+    if (team === 'home') {
+      setHomeTimeouts(prev => ({
+        ...prev,
+        [currentHalf]: Math.max(0, prev[currentHalf] - 1)
+      }));
+      setLastAction(`${currentGame?.homeTeam} Timeout Used`);
+    } else {
+      setAwayTimeouts(prev => ({
+        ...prev,
+        [currentHalf]: Math.max(0, prev[currentHalf] - 1)
+      }));
+      setLastAction(`${currentGame?.awayTeam} Timeout Used`);
+    }
+    triggerHapticFeedback('medium');
+  };
+
+  const addInjuredPlayer = (playerNumber: string) => {
+    setInjuredPlayers(prev => [...prev, playerNumber]);
+    setLastAction(`Player #${playerNumber} - Injury Timeout`);
+    triggerHapticFeedback('heavy');
+  };
+
+  const removeInjuredPlayer = (playerNumber: string) => {
+    setInjuredPlayers(prev => prev.filter(p => p !== playerNumber));
+    setLastAction(`Player #${playerNumber} - Return from Injury`);
+  };
+
+  const addHelmetOffPlayer = (playerNumber: string) => {
+    setHelmetOffPlayers(prev => [...prev, playerNumber]);
+    setLastAction(`Player #${playerNumber} - Helmet Off`);
+    triggerHapticFeedback('medium');
+  };
+
+  const removeHelmetOffPlayer = (playerNumber: string) => {
+    setHelmetOffPlayers(prev => prev.filter(p => p !== playerNumber));
+    setLastAction(`Player #${playerNumber} - Helmet On`);
+  };
+
+  const startPlayClock = (seconds: number = 25) => {
+    setPlayClockTime(seconds);
+    setPlayClockRunning(true);
+    setLastAction(`Play Clock Started - ${seconds}s`);
+  };
+
+  const stopPlayClock = () => {
+    setPlayClockRunning(false);
+    setLastAction('Play Clock Stopped');
+  };
+
+  const resetTimeouts = () => {
+    setHomeTimeouts({ first: 3, second: 3 });
+    setAwayTimeouts({ first: 3, second: 3 });
+    setLastAction('Timeouts Reset');
+  };
+
+  // Crew Analytics Functions
+  const fetchCrewAnalytics = async (crewName: string, week: number): Promise<void> => {
+    setIsLoadingAnalytics(true);
+    try {
+      const response = await fetch(`/api/crew-analytics?crew=${encodeURIComponent(crewName)}&week=${week}`);
+      const result = await response.json();
+      
+      if (result.success) {
+        setCrewAnalytics(result.data);
+        setRmacOverallStats(result.data.rmacOverall);
+      } else {
+        throw new Error(result.error || 'Failed to fetch analytics');
+      }
+    } catch (error) {
+      console.error('Failed to fetch crew analytics:', error);
+      alert('Failed to load crew analytics. Please try again.');
+    } finally {
+      setIsLoadingAnalytics(false);
+    }
+  };
+
+  const openCrewDashboard = async (): Promise<void> => {
+    setShowCrewDashboard(true);
+    // Use default crew data if none selected
+    const crewName = crewData?.name || 'Default Crew';
+    await fetchCrewAnalytics(crewName, selectedAnalyticsWeek);
+  };
+
+  const refreshAnalytics = async (): Promise<void> => {
+    if (crewData) {
+      await fetchCrewAnalytics(crewData.name, selectedAnalyticsWeek);
+    }
+  };
 
   // Phase 6: Analytics Functions
   const calculateWeeklyTrends = (weekPenalties: Penalty[]): WeeklyTrends => {
@@ -2039,44 +2924,6 @@ Submitted on: ${new Date(synopsis.submittedAt).toLocaleString()}
     }
   }, []);
 
-  // Phase 5: Game Clock Management (fix existing useEffect)
-  useEffect(() => {
-    if (gameClockRunning && sidelineMode) {
-      gameClockInterval.current = setInterval(() => {
-        setGameClockTime(prev => {
-          let newSeconds = prev.seconds - 1;
-          let newMinutes = prev.minutes;
-          
-          if (newSeconds < 0) {
-            newSeconds = 59;
-            newMinutes = Math.max(0, prev.minutes - 1);
-          }
-          
-          if (newMinutes === 0 && newSeconds === 0) {
-            setGameClockRunning(false);
-            setLastAction(`End of Q${prev.quarter}`);
-          }
-          
-          return {
-            ...prev,
-            minutes: newMinutes,
-            seconds: newSeconds
-          };
-        });
-      }, 1000);
-    } else {
-      if (gameClockInterval.current) {
-        clearInterval(gameClockInterval.current);
-      }
-    }
-
-    return () => {
-      if (gameClockInterval.current) {
-        clearInterval(gameClockInterval.current);
-      }
-    };
-  }, [gameClockRunning, sidelineMode]);
-
   // Auto-generate and send reports (disabled for demo to prevent infinite loop)
   // useEffect(() => {
   //   const checkForAutoReport = () => {
@@ -2100,6 +2947,493 @@ Submitted on: ${new Date(synopsis.submittedAt).toLocaleString()}
   // }, [weeklyReports, emailSettings.autoSendWeeklyReports]);
 
   // Add missing component definitions
+  const FoulRecorderInterface = () => (
+    <div className="bg-gray-800 m-4 p-6 rounded-xl shadow-xl">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-yellow-400 flex items-center gap-2">
+          <FileText className="w-8 h-8" />
+          Official Foul Report
+        </h2>
+        <div className="flex gap-2">
+          <button
+            onClick={exportForQwikRef}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-white font-bold"
+          >
+            Export to QwikRef
+          </button>
+          {foulReportReady && (
+            <span className="px-3 py-1 bg-green-500 text-white rounded-full text-sm">
+              Ready for Upload
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Quick Entry for Headset Communications */}
+      <div className="bg-blue-900 bg-opacity-50 p-4 rounded-lg mb-6">
+        <h3 className="font-bold text-blue-400 mb-3">Quick Entry (Headset)</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+          {quickPenalties.slice(0, 8).map((penalty) => (
+            <button
+              key={penalty.code}
+              onClick={() => {
+                setSelectedPenalty(penalty.code);
+                if (penalty.team !== 'either') {
+                  setTeam(penalty.team);
+                }
+                // Auto-focus player number for quick entry
+                setTimeout(() => {
+                  const playerInput = document.querySelector('input[placeholder*="Player"]') as HTMLInputElement;
+                  if (playerInput) playerInput.focus();
+                }, 100);
+              }}
+              className={`p-3 rounded-lg text-sm font-bold ${
+                penalty.team === 'O' ? 'bg-red-600 hover:bg-red-700' :
+                penalty.team === 'D' ? 'bg-blue-600 hover:bg-blue-700' :
+                'bg-purple-600 hover:bg-purple-700'
+              } text-white transition-colors`}
+            >
+              {penalty.code}
+              <br />
+              <span className="text-xs opacity-75">
+                {penalty.team === 'O' ? 'OFF' : penalty.team === 'D' ? 'DEF' : 'EITHER'}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Headset Notes */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-2">Headset Notes</label>
+          <input
+            type="text"
+            value={headsetNotes}
+            onChange={(e) => setHeadsetNotes(e.target.value)}
+            placeholder="Additional details from officials..."
+            className="w-full p-2 bg-gray-700 rounded-lg text-white"
+          />
+        </div>
+
+        {/* Large Player Number Input */}
+        <div className="grid grid-cols-3 gap-4">
+          <input
+            type="number"
+            value={playerNumber}
+            onChange={(e) => setPlayerNumber(e.target.value)}
+            placeholder="Player #"
+            className="p-4 bg-gray-700 rounded-lg text-white text-xl text-center"
+            min="0"
+            max="99"
+          />
+          <select
+            value={callingOfficial}
+            onChange={(e) => setCallingOfficial(e.target.value)}
+            className="p-4 bg-gray-700 rounded-lg text-white"
+          >
+            {officials.map(official => (
+              <option key={official} value={official}>{official}</option>
+            ))}
+          </select>
+          <button
+            onClick={addPenalty}
+            disabled={!selectedPenalty || !playerNumber}
+            className={`p-4 rounded-lg font-bold text-lg ${
+              !selectedPenalty || !playerNumber 
+                ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                : 'bg-green-600 hover:bg-green-700 text-white'
+            }`}
+          >
+            LOG FOUL
+          </button>
+        </div>
+      </div>
+
+      {/* Current Game Penalties - Official Format */}
+      <div className="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
+        <h3 className="font-bold text-gray-300 mb-3">Game Fouls ({penalties.length})</h3>
+        {penalties.length === 0 ? (
+          <p className="text-gray-500 italic">No fouls recorded</p>
+        ) : (
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {penalties.map((penalty, index) => (
+              <div key={penalty.id} className="bg-gray-800 p-3 rounded-lg flex justify-between items-center">
+                <div className="flex-1">
+                  <div className="flex items-center gap-4">
+                    <span className="text-yellow-400 font-bold">#{penalties.length - index}</span>
+                    <span className="text-white font-medium">
+                      {penalty.quarter} {penalty.time}
+                    </span>
+                    <span className={`px-2 py-1 rounded text-sm font-bold ${
+                      penalty.team === 'O' ? 'bg-red-600' : 'bg-blue-600'
+                    } text-white`}>
+                      {penalty.code} #{penalty.player} {penalty.team === 'O' ? 'OFF' : 'DEF'}
+                    </span>
+                    <span className="text-gray-300">{penalty.yards}yd</span>
+                    <span className="text-gray-400">({penalty.callingOfficial})</span>
+                  </div>
+                  {penalty.description && (
+                    <div className="text-sm text-gray-400 mt-1">{penalty.description}</div>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPendingCorrection(penalty.id)}
+                    className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded text-sm"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => deletePenalty(penalty.id)}
+                    className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Quick Stats for Officials */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+        <div className="bg-red-600 bg-opacity-30 p-3 rounded-lg text-center">
+          <div className="text-2xl font-bold">{penalties.filter(p => p.team === 'O').length}</div>
+          <div className="text-sm text-gray-300">Offensive</div>
+        </div>
+        <div className="bg-blue-600 bg-opacity-30 p-3 rounded-lg text-center">
+          <div className="text-2xl font-bold">{penalties.filter(p => p.team === 'D').length}</div>
+          <div className="text-sm text-gray-300">Defensive</div>
+        </div>
+        <div className="bg-yellow-600 bg-opacity-30 p-3 rounded-lg text-center">
+          <div className="text-2xl font-bold">{penalties.reduce((sum, p) => sum + p.yards, 0)}</div>
+          <div className="text-sm text-gray-300">Total Yards</div>
+        </div>
+        <div className="bg-green-600 bg-opacity-30 p-3 rounded-lg text-center">
+          <div className="text-2xl font-bold">{penalties.length}</div>
+          <div className="text-sm text-gray-300">Total Fouls</div>
+        </div>
+      </div>
+
+      {/* Post-Game Quick Actions */}
+      {penalties.length > 0 && (
+        <div className="bg-green-50 bg-opacity-10 border-2 border-green-400 rounded-lg p-4 mt-6">
+          <h3 className="text-lg font-bold text-green-400 mb-3 flex items-center gap-2">
+            🏁 Post-Game Actions
+          </h3>
+          
+          <div className="grid grid-cols-1 gap-3">
+            <button
+              onClick={exportToQwikRef}
+              className="bg-blue-600 text-white px-4 py-3 rounded-lg font-bold text-lg hover:bg-blue-700 border-2 border-blue-700 transition-colors"
+            >
+              📊 Export to QwikRef
+              {copiedIndex === 'qwikref-export' && <span className="ml-2">✅ Ready!</span>}
+            </button>
+            
+            <button
+              onClick={sendQuickPostGameReport}
+              disabled={isSendingEmail}
+              className="bg-purple-600 text-white px-4 py-3 rounded-lg font-bold text-lg hover:bg-purple-700 border-2 border-purple-700 disabled:opacity-50 transition-colors"
+            >
+              {isSendingEmail ? '📤 Sending...' : '📧 Quick Report to Coordinator'}
+            </button>
+            
+            <button
+              onClick={() => {
+                // Quick game summary for verbal debrief
+                const summary = `
+Game Summary:
+${currentGame?.homeTeam}: ${penalties.filter(p => p.team === 'O').length} penalties
+${currentGame?.awayTeam}: ${penalties.filter(p => p.team === 'D').length} penalties
+Total: ${penalties.length} penalties
+Flow: ${gameFlow}
+                `.trim();
+                alert(summary);
+              }}
+              className="bg-gray-600 text-white px-4 py-3 rounded-lg font-bold text-lg hover:bg-gray-700 border-2 border-gray-700 transition-colors"
+            >
+              📋 Quick Summary
+            </button>
+          </div>
+          
+          {foulReportReady && (
+            <div className="mt-3 p-3 bg-green-600 bg-opacity-20 border border-green-400 rounded-lg">
+              <p className="text-green-300 font-semibold">
+                ✅ Foul report ready! QwikRef data copied to clipboard.
+                {lastEmailSent && <span className="block text-sm">Quick report sent at {new Date(lastEmailSent).toLocaleTimeString()}</span>}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  const QuickActionsPanel = () => (
+    <div className={`fixed ${oneHandedMode ? 'bottom-4 right-4' : 'top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'} z-50`}>
+      <div className={`bg-gray-800 rounded-xl shadow-xl p-4 ${oneHandedMode ? 'w-72' : 'w-96'}`}>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-bold text-white">Quick Actions</h3>
+          <button
+            onClick={() => setShowQuickActions(false)}
+            className="p-2 hover:bg-gray-700 rounded-lg text-white"
+          >
+            ✕
+          </button>
+        </div>
+        
+        {/* Most Common Penalties - Large Buttons */}
+        <div className="space-y-2 mb-4">
+          <p className="text-sm text-gray-300">Common Penalties</p>
+          <div className="grid grid-cols-2 gap-2">
+            {quickPenalties.slice(0, 6).map((penalty) => (
+              <button
+                key={penalty.code}
+                onClick={() => {
+                  if (penalty.team !== 'either') {
+                    setTeam(penalty.team);
+                  }
+                  setSelectedPenalty(penalty.code);
+                  setShowQuickActions(false);
+                  // Auto-focus player number
+                  setTimeout(() => {
+                    const playerInput = document.querySelector('input[placeholder*="Player"]') as HTMLInputElement;
+                    if (playerInput) playerInput.focus();
+                  }, 100);
+                }}
+                className={`p-3 rounded-lg text-sm font-medium ${
+                  largeButtonMode ? 'text-base p-4' : ''
+                } ${
+                  penalty.team === 'O' ? 'bg-red-600 hover:bg-red-700' :
+                  penalty.team === 'D' ? 'bg-blue-600 hover:bg-blue-700' :
+                  'bg-purple-600 hover:bg-purple-700'
+                } text-white transition-colors`}
+              >
+                {penalty.code}
+                <br />
+                <span className="text-xs opacity-75">{penalty.team === 'O' ? 'OFF' : penalty.team === 'D' ? 'DEF' : 'EITHER'}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Quick Utility Actions */}
+        <div className="space-y-2">
+          <p className="text-sm text-gray-300">Quick Actions</p>
+          <div className="grid grid-cols-2 gap-2">
+            {lastPenaltyUsed && (
+              <button
+                onClick={() => {
+                  useLastPenalty();
+                  setShowQuickActions(false);
+                }}
+                className="p-2 bg-green-600 hover:bg-green-700 rounded-lg text-white text-sm"
+              >
+                Repeat: {lastPenaltyUsed}
+              </button>
+            )}
+            <button
+              onClick={() => {
+                quickTeamToggle();
+                triggerHapticFeedback('light');
+              }}
+              className="p-2 bg-gray-600 hover:bg-gray-700 rounded-lg text-white text-sm"
+            >
+              Toggle Team: {team === 'O' ? 'OFF→DEF' : 'DEF→OFF'}
+            </button>
+            {lastDeletedPenalty && (
+              <button
+                onClick={() => {
+                  undoDelete();
+                  setShowQuickActions(false);
+                }}
+                className="p-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg text-white text-sm"
+              >
+                Undo Delete
+              </button>
+            )}
+            <button
+              onClick={adjustScreenBrightness}
+              className="p-2 bg-gray-600 hover:bg-gray-700 rounded-lg text-white text-sm"
+            >
+              Brightness: {screenBrightness.toUpperCase()}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const CrewDashboardPanel = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 rounded-xl shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-700">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold flex items-center gap-3">
+              <Users className="w-8 h-8 text-blue-400" />
+              Crew Analytics Dashboard
+            </h2>
+            <button
+              onClick={() => setShowCrewDashboard(false)}
+              className="p-2 hover:bg-gray-700 rounded-lg"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+        
+        <div className="p-6 space-y-6">
+          {/* Crew Performance Summary */}
+          {crewAnalytics && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
+                  <h3 className="font-bold text-blue-400 mb-3">Your Crew Performance</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Games Officiated:</span>
+                      <span className="font-bold">{crewAnalytics.crewStats.gamesOfficiated}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total Penalties:</span>
+                      <span className="font-bold">{crewAnalytics.crewStats.totalPenalties}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Avg Penalties/Game:</span>
+                      <span className="font-bold">{crewAnalytics.crewStats.avgPenaltiesPerGame.toFixed(1)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Crew Rating:</span>
+                      <span className="font-bold text-green-400">{crewAnalytics.crewStats.crewRating}/5.0</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
+                  <h3 className="font-bold text-yellow-400 mb-3">RMAC Overall</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Total Games:</span>
+                      <span className="font-bold">{crewAnalytics.rmacOverall.totalGames}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total Penalties:</span>
+                      <span className="font-bold">{crewAnalytics.rmacOverall.totalPenalties}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Avg Penalties/Game:</span>
+                      <span className="font-bold">{crewAnalytics.rmacOverall.avgPenaltiesPerGame.toFixed(1)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Active Crews:</span>
+                      <span className="font-bold">{crewAnalytics.rmacOverall.activeCrews}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
+                  <h3 className="font-bold text-green-400 mb-3">Comparison</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Crew vs RMAC Avg:</span>
+                      <span className={`font-bold ${
+                        crewAnalytics.crewStats.avgPenaltiesPerGame < crewAnalytics.rmacOverall.avgPenaltiesPerGame 
+                          ? 'text-green-400' : 'text-red-400'
+                      }`}>
+                        {crewAnalytics.crewStats.avgPenaltiesPerGame < crewAnalytics.rmacOverall.avgPenaltiesPerGame ? 'Better' : 'Higher'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>RMAC Ranking:</span>
+                      <span className="font-bold text-yellow-400">#{crewAnalytics.crewStats.rmacRanking}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Crew Rankings */}
+              <div className="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
+                <h3 className="font-bold text-blue-400 mb-3">RMAC Crew Rankings</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-600">
+                        <th className="text-left p-2">Rank</th>
+                        <th className="text-left p-2">Crew</th>
+                        <th className="text-left p-2">Games</th>
+                        <th className="text-left p-2">Avg Penalties</th>
+                        <th className="text-left p-2">Rating</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {crewAnalytics.crewRankings.map((crew: any, index: number) => (
+                        <tr key={crew.crewId} className={`${
+                          crew.crewId === 'current-crew' ? 'bg-blue-900 bg-opacity-50' : ''
+                        } hover:bg-gray-600`}>
+                          <td className="p-2 font-bold">{index + 1}</td>
+                          <td className="p-2">{crew.crewName}</td>
+                          <td className="p-2">{crew.gamesOfficiated}</td>
+                          <td className="p-2">{crew.avgPenaltiesPerGame.toFixed(1)}</td>
+                          <td className="p-2 text-green-400">{crew.rating}/5.0</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Recent Scouting Reports */}
+              <div className="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
+                <h3 className="font-bold text-blue-400 mb-3">Recent Scouting Reports</h3>
+                <div className="space-y-3">
+                  {crewAnalytics.recentScoutingReports.map((report: any, index: number) => (
+                    <div key={index} className="bg-gray-600 bg-opacity-50 p-3 rounded">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="font-bold text-yellow-400">{report.gameInfo}</span>
+                        <span className="text-sm text-gray-400">{report.date}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Crew: {report.crewName}</span>
+                        <span className={`font-bold ${
+                          report.rating >= 4 ? 'text-green-400' : 
+                          report.rating >= 3 ? 'text-yellow-400' : 'text-red-400'
+                        }`}>
+                          Rating: {report.rating}/5.0
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Refresh Button */}
+              <div className="flex justify-center">
+                <button
+                  onClick={refreshAnalytics}
+                  className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-bold flex items-center gap-2"
+                >
+                  <RefreshCw className="w-5 h-5" />
+                  Refresh Analytics
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Loading State */}
+          {!crewAnalytics && (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex items-center gap-3 text-blue-400">
+                <div className="animate-spin">⟳</div>
+                <span>Loading crew analytics...</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   const PWASettingsPanel = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -2605,55 +3939,276 @@ Submitted on: ${new Date(synopsis.submittedAt).toLocaleString()}
     </div>
   );
 
-  // Sideline components
-  const SidelineGameClock = () => (
-    <div className="bg-gradient-to-r from-blue-600 to-blue-700 m-4 p-6 rounded-xl shadow-2xl">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-white mb-2">GAME CLOCK</h2>
-        <div className="text-8xl font-mono font-bold text-white mb-2">
-          {gameClockTime.minutes}:{gameClockTime.seconds.toString().padStart(2, '0')}
+  // Enhanced Unified Game Clock Component
+  const EnhancedGameClock = () => (
+    <div className="space-y-6">
+      {/* Main Clock Display */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 rounded-xl shadow-2xl">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold text-white mb-2">GAME CLOCK</h2>
+          <div className="text-8xl font-mono font-bold text-white mb-2">
+            {gameClockTime.minutes}:{gameClockTime.seconds.toString().padStart(2, '0')}
+          </div>
+          <div className="text-3xl font-bold text-blue-200">
+            QUARTER {gameClockTime.quarter}
+          </div>
         </div>
-        <div className="text-3xl font-bold text-blue-200">
-          QUARTER {gameClockTime.quarter}
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <button
-          onClick={() => {
-            setGameClockRunning(!gameClockRunning);
-            setLastAction(gameClockRunning ? 'Clock Stopped' : 'Clock Started');
-          }}
-          className={`p-6 rounded-xl font-bold text-2xl flex items-center justify-center gap-3 ${
-            gameClockRunning ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
-          }`}
-        >
-          {gameClockRunning ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8" />}
-          {gameClockRunning ? 'STOP CLOCK' : 'START CLOCK'}
-        </button>
         
-        <button
-          onClick={() => {
-            setGameClockTime(prev => ({
-              quarter: prev.quarter < 4 ? prev.quarter + 1 : prev.quarter,
-              minutes: 15,
-              seconds: 0
-            }));
-            setGameClockRunning(false);
-            setLastAction(`Started Q${gameClockTime.quarter < 4 ? gameClockTime.quarter + 1 : gameClockTime.quarter}`);
-          }}
-          className="p-6 bg-purple-600 hover:bg-purple-700 rounded-xl font-bold text-2xl flex items-center justify-center gap-3"
-        >
-          <RotateCcw className="w-8 h-8" />
-          NEXT QUARTER
-        </button>
+        {/* Clock Controls */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <button 
+            onClick={startGameClock}
+            disabled={gameClockRunning}
+            className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-lg font-bold"
+          >
+            <Play className="w-5 h-5" />
+            Start Clock
+          </button>
+          <button 
+            onClick={stopGameClock}
+            disabled={!gameClockRunning}
+            className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 rounded-lg font-bold"
+          >
+            <Pause className="w-5 h-5" />
+            Stop Clock
+          </button>
+          <button 
+            onClick={resetGameClock}
+            className="flex items-center gap-2 px-6 py-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-bold"
+          >
+            <RotateCcw className="w-5 h-5" />
+            Reset Clock
+          </button>
+          <button 
+            onClick={nextQuarter}
+            className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold"
+          >
+            <Flag className="w-5 h-5" />
+            Next Quarter
+          </button>
+        </div>
+
+        {/* Clock Status and Manual Time Set */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-blue-800 p-4 rounded-lg">
+            <label className="block text-sm font-semibold mb-2 text-blue-200">Set Clock Time</label>
+            <input
+              type="text"
+              placeholder="15:00"
+              className="w-full p-3 bg-blue-700 border border-blue-600 rounded-lg text-white text-center font-mono"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  const target = e.target as HTMLInputElement;
+                  const time = target.value.split(':');
+                  if (time.length === 2) {
+                    const minutes = parseInt(time[0]) || 0;
+                    const seconds = parseInt(time[1]) || 0;
+                    setClockTime(minutes, seconds);
+                  }
+                  target.value = '';
+                }
+              }}
+            />
+          </div>
+          <div className="bg-blue-800 p-4 rounded-lg flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-sm text-blue-200 mb-1">Game Clock Status</div>
+              <div className={`text-lg font-bold ${gameClockRunning ? 'text-green-400' : 'text-red-400'}`}>
+                {gameClockRunning ? 'RUNNING' : 'STOPPED'}
+              </div>
+            </div>
+          </div>
+          <div className="bg-blue-800 p-4 rounded-lg flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-sm text-blue-200 mb-1">Play Clock</div>
+              <div className={`text-2xl font-bold font-mono ${playClockTime <= 5 ? 'text-red-400' : 'text-yellow-400'}`}>
+                {playClockTime}
+              </div>
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => startPlayClock(25)}
+                  className="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs"
+                >
+                  25s
+                </button>
+                <button
+                  onClick={() => startPlayClock(40)}
+                  className="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs"
+                >
+                  40s
+                </button>
+                <button
+                  onClick={stopPlayClock}
+                  className="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs"
+                >
+                  Stop
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {lastAction && (
+          <div className="mt-4 text-center p-3 bg-blue-800 rounded-lg">
+            <span className="text-blue-200 text-lg">Last Action: {lastAction}</span>
+          </div>
+        )}
       </div>
 
-      {lastAction && (
-        <div className="text-center p-3 bg-blue-800 rounded-lg">
-          <span className="text-blue-200 text-lg">Last Action: {lastAction}</span>
+      {/* Game Management Panel */}
+      <div className="bg-gray-800 p-6 rounded-xl shadow-lg">
+        <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+          <Users className="w-5 h-5 text-green-400" />
+          Game Management
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Timeouts */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold text-yellow-400">Team Timeouts</h4>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <span className="text-blue-400 font-bold">{currentGame?.homeTeam || 'Home'}</span>
+                  <div className="flex gap-1">
+                    {[1, 2, 3].map(i => (
+                      <div
+                        key={i}
+                        className={`w-3 h-3 rounded-full ${
+                          i <= (homeTimeouts.first + homeTimeouts.second) ? 'bg-green-400' : 'bg-gray-500'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm text-gray-400">
+                    ({homeTimeouts.first}|{homeTimeouts.second})
+                  </span>
+                </div>
+                <button
+                  onClick={() => useTimeout('home')}
+                  disabled={(homeTimeouts.first + homeTimeouts.second) === 0}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 rounded text-sm font-bold"
+                >
+                  Use TO
+                </button>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <span className="text-red-400 font-bold">{currentGame?.awayTeam || 'Away'}</span>
+                  <div className="flex gap-1">
+                    {[1, 2, 3].map(i => (
+                      <div
+                        key={i}
+                        className={`w-3 h-3 rounded-full ${
+                          i <= (awayTimeouts.first + awayTimeouts.second) ? 'bg-green-400' : 'bg-gray-500'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm text-gray-400">
+                    ({awayTimeouts.first}|{awayTimeouts.second})
+                  </span>
+                </div>
+                <button
+                  onClick={() => useTimeout('away')}
+                  disabled={(awayTimeouts.first + awayTimeouts.second) === 0}
+                  className="px-3 py-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 rounded text-sm font-bold"
+                >
+                  Use TO
+                </button>
+              </div>
+              <button
+                onClick={resetTimeouts}
+                className="w-full px-3 py-2 bg-yellow-600 hover:bg-yellow-700 rounded font-bold text-sm"
+              >
+                Reset Timeouts
+              </button>
+            </div>
+          </div>
+
+          {/* Player Tracking */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold text-yellow-400">Player Status</h4>
+            <div className="space-y-3">
+              <div className="p-3 bg-gray-700 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-red-400 font-semibold flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" />
+                    Injured Players
+                  </span>
+                  <span className="text-sm text-gray-400">{injuredPlayers.length}</span>
+                </div>
+                {injuredPlayers.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {injuredPlayers.map(player => (
+                      <span
+                        key={player}
+                        className="px-2 py-1 bg-red-600 rounded text-sm font-bold cursor-pointer hover:bg-red-700"
+                        onClick={() => removeInjuredPlayer(player)}
+                      >
+                        #{player} ✕
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <input
+                  type="text"
+                  placeholder="Player # injured"
+                  className="w-full mt-2 p-2 bg-gray-600 border border-gray-500 rounded text-white text-sm"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      const target = e.target as HTMLInputElement;
+                      const playerNum = target.value.trim();
+                      if (playerNum && !injuredPlayers.includes(playerNum)) {
+                        addInjuredPlayer(playerNum);
+                        target.value = '';
+                      }
+                    }
+                  }}
+                />
+              </div>
+              
+              <div className="p-3 bg-gray-700 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-orange-400 font-semibold flex items-center gap-2">
+                    <Shield className="w-4 h-4" />
+                    Helmet Off
+                  </span>
+                  <span className="text-sm text-gray-400">{helmetOffPlayers.length}</span>
+                </div>
+                {helmetOffPlayers.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {helmetOffPlayers.map(player => (
+                      <span
+                        key={player}
+                        className="px-2 py-1 bg-orange-600 rounded text-sm font-bold cursor-pointer hover:bg-orange-700"
+                        onClick={() => removeHelmetOffPlayer(player)}
+                      >
+                        #{player} ✕
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <input
+                  type="text"
+                  placeholder="Player # helmet off"
+                  className="w-full mt-2 p-2 bg-gray-600 border border-gray-500 rounded text-white text-sm"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      const target = e.target as HTMLInputElement;
+                      const playerNum = target.value.trim();
+                      if (playerNum && !helmetOffPlayers.includes(playerNum)) {
+                        addHelmetOffPlayer(playerNum);
+                        target.value = '';
+                      }
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 
@@ -3067,6 +4622,14 @@ Submitted on: ${new Date(synopsis.submittedAt).toLocaleString()}
             
             {/* Phase 1: Enhanced Settings */}
             <div className="flex gap-2">
+              {/* Foul Recorder Mode Toggle */}
+              <button 
+                onClick={toggleFoulRecorderMode}
+                className={`p-2 rounded-lg ${foulRecorderMode ? 'bg-yellow-600' : 'bg-gray-600'} hover:opacity-80`}
+                title="Foul Recorder Mode - Official penalty tracking interface"
+              >
+                <FileText className="w-5 h-5" />
+              </button>
               {/* Phase 5: Sideline Mode Toggle */}
               <button 
                 onClick={() => {
@@ -3119,6 +4682,16 @@ Submitted on: ${new Date(synopsis.submittedAt).toLocaleString()}
           </div>
         </div>
         
+        {/* Foul Recorder Mode Indicator */}
+        {foulRecorderMode && (
+          <div className="mt-4 p-3 bg-yellow-600 bg-opacity-20 border border-yellow-400 rounded-lg text-center">
+            <div className="flex items-center justify-center gap-2">
+              <FileText className="w-5 h-5 text-yellow-400" />
+              <span className="text-yellow-200 font-bold">FOUL RECORDER MODE - Official Penalty Tracking</span>
+            </div>
+          </div>
+        )}
+        
         {/* Phase 5: Sideline Mode Indicator */}
         {sidelineMode && (
           <div className="mt-4 p-3 bg-purple-600 bg-opacity-20 border border-purple-400 rounded-lg text-center">
@@ -3130,11 +4703,16 @@ Submitted on: ${new Date(synopsis.submittedAt).toLocaleString()}
         )}
       </div>
 
-      {/* Phase 5: Conditional Interface - Sideline Mode vs Official Mode */}
-      {sidelineMode ? (
+      {/* Conditional Interface - Foul Recorder vs Sideline vs Official Mode */}
+      {foulRecorderMode ? (
+        // FOUL RECORDER MODE: Official penalty tracking interface
+        <div className="space-y-0">
+          <FoulRecorderInterface />
+        </div>
+      ) : sidelineMode ? (
         // SIDELINE MODE: Simplified interface for non-football-savvy volunteers
         <div className="space-y-0">
-          <SidelineGameClock />
+          <EnhancedGameClock />
           <SidelineScoreboard />
           <SidelinePenaltyEntry />
         </div>
@@ -3144,19 +4722,33 @@ Submitted on: ${new Date(synopsis.submittedAt).toLocaleString()}
           {/* Navigation Tabs */}
           <div className="p-4 border-b border-gray-700">
             <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg">
-            <Mic className="w-4 h-4" />
-            <span>Voice</span>
+          <button 
+            onClick={startVoiceNote}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+              isRecording ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-600'
+            }`}
+          >
+            {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            <span>{isRecording ? 'Recording...' : 'Voice'}</span>
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg">
+          <button 
+            onClick={openCrewDashboard}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg"
+          >
             <BarChart3 className="w-4 h-4" />
             <span>Analytics</span>
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg">
+          <button 
+            onClick={openEnforcementTools}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg"
+          >
             <Shield className="w-4 h-4" />
             <span>Enforce</span>
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg">
+          <button 
+            onClick={openNotesPanel}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg"
+          >
             <FileText className="w-4 h-4" />
             <span>Notes</span>
           </button>
@@ -3272,6 +4864,9 @@ Submitted on: ${new Date(synopsis.submittedAt).toLocaleString()}
         </div>
       )}
 
+      {/* Crew Dashboard */}
+      {showCrewDashboard && <CrewDashboardPanel />}
+
       <div className="p-4 space-y-6">
         {/* Game Status */}
         <section>
@@ -3327,6 +4922,11 @@ Submitted on: ${new Date(synopsis.submittedAt).toLocaleString()}
               <span className="text-3xl font-mono font-bold">{fieldPosition}</span>
             </div>
           </div>
+        </section>
+
+        {/* Enhanced Game Clock & Management */}
+        <section>
+          <EnhancedGameClock />
         </section>
 
         {/* Add Penalty */}
@@ -3532,11 +5132,17 @@ Submitted on: ${new Date(synopsis.submittedAt).toLocaleString()}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <button className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold">
+            <button 
+              onClick={contributeIntelligence}
+              className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold"
+            >
               <Upload className="w-5 h-5 mx-auto mb-2" />
               Contribute Intelligence
             </button>
-            <button className="p-4 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold">
+            <button 
+              onClick={viewMasterIntelligence}
+              className="p-4 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold"
+            >
               <Eye className="w-5 h-5 mx-auto mb-2" />
               View Master Intelligence
             </button>
@@ -3586,11 +5192,17 @@ Submitted on: ${new Date(synopsis.submittedAt).toLocaleString()}
             <h2 className="text-xl font-bold">Google Sheets Sync</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <button className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold">
+            <button 
+              onClick={syncToGoogleSheets}
+              className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold"
+            >
               <Upload className="w-5 h-5 mx-auto mb-2" />
               Sync to Sheets
             </button>
-            <button className="p-4 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold">
+            <button 
+              onClick={viewGoogleSheet}
+              className="p-4 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold"
+            >
               <FileText className="w-5 h-5 mx-auto mb-2" />
               View Sheet
             </button>
@@ -3699,5 +5311,6 @@ const QuickEntryTemplates: React.FC<{
     </div>
   );
 };
+
 
 export default RMACOfficialsPWA;
