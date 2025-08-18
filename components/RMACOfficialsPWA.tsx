@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { offlineStorage, isOnline, onConnectionChange, triggerManualSync } from '@/lib/offline-storage';
 import { driveBackup } from '@/lib/google-drive-backup';
+import WeeklyGameManagement from './WeeklyGameManagement';
+import RMACAnalyticsDashboard from './RMACAnalyticsDashboard';
 
 // Web Speech API type declarations
 declare global {
@@ -803,6 +805,13 @@ const RMACOfficialsPWA: React.FC = () => {
   const [isLoadingAnalytics, setIsLoadingAnalytics] = useState<boolean>(false);
   const [rmacOverallStats, setRmacOverallStats] = useState<any>(null);
   const [selectedAnalyticsWeek, setSelectedAnalyticsWeek] = useState<number>(1);
+
+  // New Navigation State for Multi-Crew System
+  const [currentView, setCurrentView] = useState<'landing' | 'game'>('game'); // Start with game view for now
+  const [selectedGame, setSelectedGame] = useState<any>(null);
+  const [currentWeek, setCurrentWeek] = useState<number>(1);
+  const [showRMACAnalytics, setShowRMACAnalytics] = useState<boolean>(false);
+  const [showWeeklyManagement, setShowWeeklyManagement] = useState<boolean>(false);
 
   // Refs
   const gameClockInterval = useRef<NodeJS.Timeout | null>(null);
@@ -4587,7 +4596,24 @@ Flow: ${gameFlow}
       {/* Header */}
       <header className="bg-gray-800 p-4 border-b border-gray-700">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">RMAC Officials Assistant</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold">RMAC Officials Assistant</h1>
+            {/* Navigation Buttons */}
+            <button
+              onClick={() => setShowWeeklyManagement(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-semibold"
+            >
+              <Calendar className="w-4 h-4" />
+              Weekly Games
+            </button>
+            <button
+              onClick={() => setShowRMACAnalytics(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-semibold"
+            >
+              <BarChart3 className="w-4 h-4" />
+              RMAC Analytics
+            </button>
+          </div>
           <div className="flex items-center gap-4">
             {/* Phase 1: Weather Display */}
             {weatherData && (
@@ -4866,6 +4892,51 @@ Flow: ${gameFlow}
 
       {/* Crew Dashboard */}
       {showCrewDashboard && <CrewDashboardPanel />}
+
+      {/* Weekly Game Management Modal */}
+      {showWeeklyManagement && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl shadow-xl max-w-7xl w-full max-h-[95vh] overflow-y-auto">
+            <div className="p-4 border-b border-gray-700">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Weekly Game Management</h2>
+                <button
+                  onClick={() => setShowWeeklyManagement(false)}
+                  className="p-2 hover:bg-gray-700 rounded-lg text-gray-400"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div className="p-4">
+              <WeeklyGameManagement
+                currentWeek={currentWeek}
+                onSelectGame={(game) => {
+                  setSelectedGame(game);
+                  setShowWeeklyManagement(false);
+                  // Could potentially switch to game view in the future
+                }}
+                onViewCrewAnalytics={(crewChief) => {
+                  fetchCrewAnalytics(crewChief, currentWeek);
+                  setShowCrewDashboard(true);
+                  setShowWeeklyManagement(false);
+                }}
+                onViewRMACAnalytics={() => {
+                  setShowRMACAnalytics(true);
+                  setShowWeeklyManagement(false);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RMAC Analytics Dashboard */}
+      {showRMACAnalytics && (
+        <RMACAnalyticsDashboard
+          onClose={() => setShowRMACAnalytics(false)}
+        />
+      )}
 
       <div className="p-4 space-y-6">
         {/* Enhanced Game Clock & Management */}
