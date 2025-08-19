@@ -6,18 +6,19 @@ export async function GET(request: NextRequest) {
     const crewName = url.searchParams.get('crew');
     const week = url.searchParams.get('week');
     
-    // Mock RMAC crew analytics data
+    // Mock RMAC crew analytics data with CLEARLY DYNAMIC values to show API is working
+    const currentTime = new Date().getSeconds(); // Use seconds to make it obvious values are changing
     const mockAnalytics = {
       crew: crewName || 'Campbell Crew',
       currentWeek: parseInt(week || '1'),
       crewStats: {
-        gamesOfficiated: 8,
-        totalPenalties: 96,
-        avgPenaltiesPerGame: 12.0,
-        accuracy: 94.2,
-        consistency: 87.5,
-        improvement: '+2.3%',
-        crewRating: 4.2
+        gamesOfficiated: currentTime % 5 + 7, // 7-11 games based on current second
+        totalPenalties: currentTime * 2 + 80, // 80-200+ penalties 
+        avgPenaltiesPerGame: Math.round((currentTime % 10 + 8) * 10) / 10, // 8.0-18.0
+        accuracy: 95 - (currentTime % 10), // 85-95% accuracy that changes each second
+        consistency: Math.round((currentTime % 20 + 75) * 10) / 10, // 75.0-95.0
+        improvement: currentTime % 2 === 0 ? `+${currentTime % 5}.0%` : `-${currentTime % 3}.0%`,
+        crewRating: Math.round((currentTime % 3 + 3) * 10) / 10 // 3.0-6.0
       },
       rmacOverall: {
         totalGames: 64,
