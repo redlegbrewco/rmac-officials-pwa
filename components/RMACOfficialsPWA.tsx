@@ -4903,8 +4903,19 @@ Flow: ${gameFlow}
                           <div className="text-sm text-gray-400 mt-1">
                             {new Date(game.date).toLocaleDateString()} • {game.time} • {game.venue}
                           </div>
-                          <div className="text-sm text-gray-500 mt-1">
-                            Crew Chief: {game.crewChief}
+                          <div className="text-sm text-gray-500 mt-1 space-y-1">
+                            <div>Crew Chief: {game.crewChief}</div>
+                            {(game.referee !== 'Unassigned' || game.umpire !== 'Unassigned') && (
+                              <div className="grid grid-cols-2 gap-x-4 text-xs">
+                                {game.referee !== 'Unassigned' && <div>R: {game.referee}</div>}
+                                {game.umpire !== 'Unassigned' && <div>U: {game.umpire}</div>}
+                                {game.headLinesman !== 'Unassigned' && <div>HL: {game.headLinesman}</div>}
+                                {game.lineJudge !== 'Unassigned' && <div>LJ: {game.lineJudge}</div>}
+                                {game.fieldJudge !== 'Unassigned' && <div>FJ: {game.fieldJudge}</div>}
+                                {game.sideJudge !== 'Unassigned' && <div>SJ: {game.sideJudge}</div>}
+                                {game.backJudge !== 'Unassigned' && <div>BJ: {game.backJudge}</div>}
+                              </div>
+                            )}
                           </div>
                         </div>
                         <button
@@ -5117,9 +5128,16 @@ Flow: ${gameFlow}
           </div>
         </header>
         <WeeklyGameManagement 
-          onGameSelect={(game) => {
+          currentWeek={currentWeek}
+          onSelectGame={(game) => {
             setCurrentGame(game);
             setCurrentView('game');
+          }}
+          onViewCrewAnalytics={(crewChief) => {
+            setCurrentView('crew-performance');
+          }}
+          onViewRMACAnalytics={() => {
+            setCurrentView('analytics');
           }}
         />
       </div>
