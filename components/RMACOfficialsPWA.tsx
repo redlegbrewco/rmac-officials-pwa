@@ -18,6 +18,7 @@ import { offlineStorage, isOnline, onConnectionChange, triggerManualSync } from 
 import { driveBackup } from '@/lib/google-drive-backup';
 import WeeklyGameManagement from './WeeklyGameManagement';
 import RMACAnalyticsDashboard from './RMACAnalyticsDashboard';
+import CrewAssignmentModal from './CrewAssignmentModal';
 import CrewPerformancePanel from './CrewPerformancePanel';
 
 // Web Speech API type declarations
@@ -127,6 +128,21 @@ interface Game {
   homeTeam: string;
   awayTeam: string;
   date: string;
+  time?: string;
+  venue?: string;
+  division?: string;
+  crewChief?: string;
+  referee?: string;
+  umpire?: string;
+  headLinesman?: string;
+  lineJudge?: string;
+  fieldJudge?: string;
+  sideJudge?: string;
+  backJudge?: string;
+  centerJudge?: string;
+  status?: string;
+  scoutingReportSubmitted?: boolean;
+  scoutingRating?: number;
   penalties: Penalty[];
   events?: GameEvent[];
   notes?: CrewNote[];
@@ -672,6 +688,10 @@ const RMACOfficialsPWA: React.FC = () => {
     gamesOfficiated?: number;
     avgPenaltiesPerGame?: number;
   } | null>(null);
+
+  // Crew Assignment State
+  const [showCrewAssignmentModal, setShowCrewAssignmentModal] = useState<boolean>(false);
+  const [gameToAssign, setGameToAssign] = useState<Game | null>(null);
 
   // Phase 5: Sideline Mode State
   const [gameClockRunning, setGameClockRunning] = useState<boolean>(false);
@@ -1807,6 +1827,57 @@ Time: ${new Date().toLocaleTimeString()}
       setLastDeletedPenalty(null);
       playSound('ding');
     }
+  };
+
+  // Crew Assignment Functions
+  const handleAssignCrew = async (gameId: string, crewId: string) => {
+    const selectedCrew = RMAC_CREWS[crewId];
+    if (!selectedCrew) return;
+
+    try {
+      // In production, this would update the database
+      // For now, we'll update the local games state
+      setWeeklyGames(prevGames => 
+        prevGames.map(game => {
+          if (game.id === gameId) {
+            return {
+              ...game,
+              crewChief: selectedCrew.officials.R,
+              referee: selectedCrew.officials.R,
+              umpire: selectedCrew.officials.U,
+              headLinesman: selectedCrew.officials.HL,
+              lineJudge: selectedCrew.officials.LJ,
+              fieldJudge: selectedCrew.officials.FJ,
+              sideJudge: selectedCrew.officials.SJ,
+              backJudge: selectedCrew.officials.BJ,
+              centerJudge: selectedCrew.officials.CJ
+            };
+          }
+          return game;
+        })
+      );
+
+      // Show success notification
+      setLastAction(`Crew "${selectedCrew.name}" assigned to game`);
+      triggerHapticFeedback('success');
+      
+    } catch (error) {
+      console.error('Failed to assign crew:', error);
+      alert('Failed to assign crew. Please try again.');
+    }
+  };
+
+  // Convert RMAC_CREWS to format expected by CrewAssignmentModal
+  const getAvailableCrews = () => {
+    return Object.entries(RMAC_CREWS).map(([crewId, crew]) => ({
+      id: crewId,
+      name: crew.name,
+      crewChief: crew.officials.R,
+      officials: crew.officials,
+      rating: Math.round((Math.random() * 1.5 + 3.5) * 10) / 10, // 3.5-5.0 rating
+      availability: 'available' as const,
+      conflicts: []
+    }));
   };
 
   // Connection monitoring
@@ -4962,15 +5033,29 @@ Flow: ${gameFlow}
                             )}
                           </div>
                         </div>
-                        <button
-                          onClick={() => {
-                            setCurrentGame(game);
-                            setCurrentView('game');
-                          }}
-                          className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-semibold"
-                        >
-                          Officiate Game
-                        </button>
+                        <div className="flex flex-col gap-2">
+                          {game.crewChief === 'Unassigned' && (
+                            <button
+                              onClick={() => {
+                                setGameToAssign(game);
+                                setShowCrewAssignmentModal(true);
+                              }}
+                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-semibold"
+                            >
+                              Assign Crew
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              setCurrentGame(game);
+                              setCurrentView('game');
+                            }}
+                            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-semibold"
+                            disabled={game.crewChief === 'Unassigned'}
+                          >
+                            Officiate Game
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )) : (
@@ -6224,6 +6309,25 @@ Flow: ${gameFlow}
       </div>
         </>
       )}
+
+      {/* Crew Assignment Modal */}
+      <CrewAssignmentModal
+        isOpen={showCrewAssignmentModal}
+        onClose={() => {
+          setShowCrewAssignmentModal(false);
+          setGameToAssign(null);
+        }}
+        game={gameToAssign ? {
+          id: gameToAssign.id,
+          homeTeam: gameToAssign.homeTeam,
+          awayTeam: gameToAssign.awayTeam,
+          date: gameToAssign.date,
+          time: gameToAssign.time,
+          venue: gameToAssign.venue
+        } : {} as any}
+        availableCrews={getAvailableCrews()}
+        onAssignCrew={handleAssignCrew}
+      />
     </div>
   );
 };
