@@ -17,11 +17,12 @@ interface CrewAssignmentModalProps {
     name: string;
     crewChief: string;
     officials: Record<string, string>;
-    rating: number;
-    availability: 'available' | 'unavailable' | 'tentative';
+    rating: number | null;
+    availability: 'available' | 'unavailable' | 'tentative' | 'unknown';
     conflicts?: string[];
   }>;
-  onAssignCrew: (gameId: string, crewId: string) => void;
+  onAssignCrew: (gameId: string, crewId: string, shouldStartOfficiating?: boolean) => void;
+  showStartOfficatingOption?: boolean;
 }
 
 const CrewAssignmentModal: React.FC<CrewAssignmentModalProps> = ({
@@ -29,16 +30,19 @@ const CrewAssignmentModal: React.FC<CrewAssignmentModalProps> = ({
   onClose,
   game,
   availableCrews,
-  onAssignCrew
+  onAssignCrew,
+  showStartOfficatingOption = false
 }) => {
   const [selectedCrew, setSelectedCrew] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleAssign = () => {
+  const handleAssign = (shouldStartOfficiating = false) => {
     if (selectedCrew) {
-      onAssignCrew(game.id, selectedCrew);
-      onClose();
+      onAssignCrew(game.id, selectedCrew, shouldStartOfficiating);
+      if (!shouldStartOfficiating) {
+        onClose();
+      }
     }
   };
 
@@ -93,7 +97,7 @@ const CrewAssignmentModal: React.FC<CrewAssignmentModalProps> = ({
                   <h5 className="font-bold text-white">{crew.name}</h5>
                   <p className="text-sm text-gray-300">Chief: {crew.crewChief}</p>
                   <p className="text-sm text-gray-400">
-                    Rating: <span className="text-yellow-400">{crew.rating.toFixed(1)}★</span>
+                    Rating: <span className="text-yellow-400">{crew.rating ? crew.rating.toFixed(1) : 'N/A'}★</span>
                   </p>
                 </div>
                 <span className={`px-2 py-1 rounded text-xs font-bold ${
@@ -139,12 +143,21 @@ const CrewAssignmentModal: React.FC<CrewAssignmentModalProps> = ({
             Cancel
           </button>
           <button
-            onClick={handleAssign}
+            onClick={() => handleAssign(false)}
             disabled={!selectedCrew}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Assign Crew
           </button>
+          {showStartOfficatingOption && (
+            <button
+              onClick={() => handleAssign(true)}
+              disabled={!selectedCrew}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Assign & Start Officiating
+            </button>
+          )}
         </div>
       </div>
     </div>

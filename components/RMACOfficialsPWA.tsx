@@ -490,7 +490,7 @@ interface WeeklyTrends {
   consistencyMetrics: {
     crewVariance: number;
     positionBalance: number;
-    callAccuracy: number;
+    callAccuracy: number | undefined; // Allow undefined when database is unavailable
   };
 }
 
@@ -687,9 +687,9 @@ const RMACOfficialsPWA: React.FC = () => {
 
   // Crew Performance State
   const [crewPerformanceStats, setCrewPerformanceStats] = useState<{
-    accuracy?: number;
-    gamesOfficiated?: number;
-    avgPenaltiesPerGame?: number;
+    accuracy?: number | null;
+    gamesOfficiated?: number | null;
+    avgPenaltiesPerGame?: number | null;
   } | null>(null);
 
   // Crew Assignment State
@@ -889,6 +889,7 @@ const RMACOfficialsPWA: React.FC = () => {
 
   // Missing State Variables for Error Resolution
   const [weeklyGames, setWeeklyGames] = useState<any[]>([]);
+  const [availableCrews, setAvailableCrews] = useState<any[]>([]);
 
   // Refs
   const gameClockInterval = useRef<NodeJS.Timeout | null>(null);
@@ -1865,28 +1866,29 @@ Time: ${new Date().toLocaleTimeString()}
   };
 
   // Crew Assignment Functions
-  const handleAssignCrew = async (gameId: string, crewId: string) => {
+  const handleAssignCrew = async (gameId: string, crewId: string, shouldStartOfficiating = false) => {
     const selectedCrew = RMAC_CREWS[crewId];
     if (!selectedCrew) return;
 
     try {
       // In production, this would update the database
       // For now, we'll update the local games state
+      const updatedGame = {
+        crewChief: selectedCrew.officials.R,
+        referee: selectedCrew.officials.R,
+        umpire: selectedCrew.officials.U,
+        headLinesman: selectedCrew.officials.HL,
+        lineJudge: selectedCrew.officials.LJ,
+        fieldJudge: selectedCrew.officials.FJ,
+        sideJudge: selectedCrew.officials.SJ,
+        backJudge: selectedCrew.officials.BJ,
+        centerJudge: selectedCrew.officials.CJ
+      };
+
       setWeeklyGames(prevGames => 
         prevGames.map(game => {
           if (game.id === gameId) {
-            return {
-              ...game,
-              crewChief: selectedCrew.officials.R,
-              referee: selectedCrew.officials.R,
-              umpire: selectedCrew.officials.U,
-              headLinesman: selectedCrew.officials.HL,
-              lineJudge: selectedCrew.officials.LJ,
-              fieldJudge: selectedCrew.officials.FJ,
-              sideJudge: selectedCrew.officials.SJ,
-              backJudge: selectedCrew.officials.BJ,
-              centerJudge: selectedCrew.officials.CJ
-            };
+            return { ...game, ...updatedGame };
           }
           return game;
         })
@@ -1895,6 +1897,26 @@ Time: ${new Date().toLocaleTimeString()}
       // Show success notification
       setLastAction(`Crew "${selectedCrew.name}" assigned to game`);
       triggerHapticFeedback('medium');
+      showToastMessage(`Crew "${selectedCrew.name}" assigned successfully!`, 'success');
+
+      // If requested, start officiating the game immediately
+      if (shouldStartOfficiating && gameToAssign) {
+        const gameWithCrew = { ...gameToAssign, ...updatedGame };
+        const gameWithPenalties: Game = {
+          ...gameWithCrew,
+          penalties: []
+        };
+        
+        setCurrentGame(gameWithPenalties);
+        setCrewData(selectedCrew);
+        setCurrentView('game');
+        
+        // Close the crew assignment modal
+        setShowCrewAssignmentModal(false);
+        setGameToAssign(null);
+        
+        showToastMessage(`Starting to officiate ${gameWithCrew.homeTeam} vs ${gameWithCrew.awayTeam}`, 'success');
+      }
       
     } catch (error) {
       console.error('Failed to assign crew:', error);
@@ -1903,17 +1925,58 @@ Time: ${new Date().toLocaleTimeString()}
   };
 
   // Convert RMAC_CREWS to format expected by CrewAssignmentModal
-  const getAvailableCrews = () => {
-    return Object.entries(RMAC_CREWS).map(([crewId, crew]) => ({
-      id: crewId,
-      name: crew.name,
-      crewChief: crew.officials.R,
-      officials: crew.officials,
-      rating: Math.round((Math.random() * 1.5 + 3.5) * 10) / 10, // 3.5-5.0 rating
-      availability: 'available' as const,
-      conflicts: []
-    }));
+  const getAvailableCrews = async () => {
+    try {
+      // Fetch crew ratings and availability from database
+      const response = await fetch('/api/crew-ratings');
+      if (response.ok) {
+        const dbCrewData = await response.json();
+        
+        return Object.entries(RMAC_CREWS).map(([crewId, crew]) => ({
+          id: crewId,
+          name: crew.name,
+          crewChief: crew.officials.R,
+          officials: crew.officials,
+          rating: dbCrewData[crewId]?.rating || null, // Get from database
+          availability: dbCrewData[crewId]?.availability || 'unknown' as const,
+          conflicts: dbCrewData[crewId]?.conflicts || []
+        }));
+      } else {
+        // Database unavailable, return basic crew info without ratings
+        return Object.entries(RMAC_CREWS).map(([crewId, crew]) => ({
+          id: crewId,
+          name: crew.name,
+          crewChief: crew.officials.R,
+          officials: crew.officials,
+          rating: null, // No fake data
+          availability: 'unknown' as const,
+          conflicts: []
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch crew ratings:', error);
+      // Return basic crew info on error
+      return Object.entries(RMAC_CREWS).map(([crewId, crew]) => ({
+        id: crewId,
+        name: crew.name,
+        crewChief: crew.officials.R,
+        officials: crew.officials,
+        rating: null,
+        availability: 'unknown' as const,
+        conflicts: []
+      }));
+    }
   };
+
+  // Load available crews when component mounts
+  useEffect(() => {
+    const loadAvailableCrews = async () => {
+      const crews = await getAvailableCrews();
+      setAvailableCrews(crews);
+    };
+    
+    loadAvailableCrews();
+  }, []);
 
   // Connection monitoring
   useEffect(() => {
@@ -2072,30 +2135,36 @@ Time: ${new Date().toLocaleTimeString()}
   useEffect(() => {
     const fetchCrewPerformanceStats = async () => {
       try {
-        const response = await fetch('/api/crew-analytics');
+        const response = await fetch('/api/crew-analytics', {
+          headers: {
+            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_GOOGLE_SHEETS_API_KEY}`,
+          }
+        });
+        
         if (response.ok) {
           const data = await response.json();
           setCrewPerformanceStats({
-            accuracy: data.crewStats?.accuracy || Math.round(Math.random() * 10 + 90), // 90-100%
-            gamesOfficiated: data.crewStats?.gamesOfficiated || Math.floor(Math.random() * 5 + 8), // 8-12 games
-            avgPenaltiesPerGame: data.crewStats?.avgPenaltiesPerGame || Math.round((Math.random() * 4 + 9) * 10) / 10 // 9.0-13.0
+            accuracy: data.crewStats?.accuracy || null,
+            gamesOfficiated: data.crewStats?.gamesOfficiated || null,
+            avgPenaltiesPerGame: data.crewStats?.avgPenaltiesPerGame || null
           });
         } else {
-          // API call failed, use randomized fallback values
+          // API call failed, show loading state instead of fake data
           setCrewPerformanceStats({
-            accuracy: Math.round(Math.random() * 10 + 90), // 90-100%
-            gamesOfficiated: Math.floor(Math.random() * 5 + 8), // 8-12 games
-            avgPenaltiesPerGame: Math.round((Math.random() * 4 + 9) * 10) / 10 // 9.0-13.0
+            accuracy: null,
+            gamesOfficiated: null,
+            avgPenaltiesPerGame: null
           });
+          showToastMessage('Unable to load analytics from database. Check connection.', 'error');
         }
       } catch (error) {
         console.error('Failed to fetch crew performance stats:', error);
-        // Set randomized values if API fails
         setCrewPerformanceStats({
-          accuracy: Math.round(Math.random() * 10 + 90), // 90-100%
-          gamesOfficiated: Math.floor(Math.random() * 5 + 8), // 8-12 games
-          avgPenaltiesPerGame: Math.round((Math.random() * 4 + 9) * 10) / 10 // 9.0-13.0
+          accuracy: null,
+          gamesOfficiated: null, 
+          avgPenaltiesPerGame: null
         });
+        showToastMessage('Analytics database connection failed.', 'error');
       }
     };
 
@@ -2560,11 +2629,11 @@ Would you like to:
       overtimePenalties: weekPenalties.filter(p => p.quarter === 'OT').length
     };
 
-    // Consistency metrics (calculated)
+    // Consistency metrics (calculated from actual data)
     const consistencyMetrics = {
-      crewVariance: Math.round(Math.random() * 100), // Placeholder calculation
+      crewVariance: Math.round((1 - (Math.max(...Object.values(officialCounts)) - Math.min(...Object.values(officialCounts))) / totalPenalties) * 100), // Real calculation
       positionBalance: Math.round((1 - (Math.max(...Object.values(officialCounts)) - Math.min(...Object.values(officialCounts))) / totalPenalties) * 100),
-      callAccuracy: Math.round(85 + Math.random() * 10) // Placeholder
+      callAccuracy: undefined as number | undefined // Will be fetched from database
     };
 
     return {
@@ -2586,20 +2655,46 @@ Would you like to:
       
       const trends = calculateWeeklyTrends(weekPenalties);
       
-      // Calculate crew performance
+      // Calculate crew performance from actual database data
       const crewPerformance: Record<string, any> = {};
-      Object.values(RMAC_CREWS).forEach(crew => {
-        const crewPenalties = weekPenalties.filter(p => 
-          Object.keys(crew.officials).includes(p.callingOfficial)
-        );
-        
-        crewPerformance[crew.name] = {
-          games: 2, // Simulated
-          penalties: crewPenalties.length,
-          averagePerGame: crewPenalties.length / 2,
-          consistency: Math.round(80 + Math.random() * 20)
-        };
-      });
+      
+      // Fetch real crew performance data
+      try {
+        const crewResponse = await fetch(`/api/crew-performance?week=${week}`);
+        if (crewResponse.ok) {
+          const crewData = await crewResponse.json();
+          Object.assign(crewPerformance, crewData);
+        } else {
+          // If database unavailable, calculate from current data
+          Object.values(RMAC_CREWS).forEach(crew => {
+            const crewPenalties = weekPenalties.filter(p => 
+              Object.keys(crew.officials).includes(p.callingOfficial)
+            );
+            
+            crewPerformance[crew.name] = {
+              games: 0, // Will be fetched from database
+              penalties: crewPenalties.length,
+              averagePerGame: null, // Cannot calculate without games count
+              consistency: null // Will be calculated from database
+            };
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch crew performance data:', error);
+        // Use actual penalty data but mark metrics as unavailable
+        Object.values(RMAC_CREWS).forEach(crew => {
+          const crewPenalties = weekPenalties.filter(p => 
+            Object.keys(crew.officials).includes(p.callingOfficial)
+          );
+          
+          crewPerformance[crew.name] = {
+            games: null,
+            penalties: crewPenalties.length,
+            averagePerGame: null,
+            consistency: null
+          };
+        });
+      }
 
       const report: WeeklyReport = {
         id: `week-${week}-${Date.now()}`,
@@ -5063,13 +5158,39 @@ Flow: ${gameFlow}
                           )}
                           <button
                             onClick={() => {
-                              setCurrentGame(game);
-                              setCurrentView('game');
+                              // Check if a crew needs to be assigned first
+                              if (game.crewChief === 'Unassigned') {
+                                // Show crew assignment modal first
+                                setGameToAssign(game);
+                                setShowCrewAssignmentModal(true);
+                                showToastMessage('Please assign a crew to this game first', 'info');
+                              } else {
+                                // Convert WeeklyGame to Game format and start officiating
+                                const gameWithPenalties: Game = {
+                                  ...game,
+                                  penalties: [] // Initialize empty penalties array for new game
+                                };
+                                setCurrentGame(gameWithPenalties);
+                                
+                                // Set crew data if available
+                                const assignedCrewId = Object.keys(RMAC_CREWS).find(crewId => 
+                                  RMAC_CREWS[crewId].officials.R === game.crewChief
+                                );
+                                if (assignedCrewId) {
+                                  setCrewData(RMAC_CREWS[assignedCrewId]);
+                                }
+                                
+                                setCurrentView('game');
+                                showToastMessage(`Starting to officiate ${game.homeTeam} vs ${game.awayTeam}`, 'success');
+                              }
                             }}
-                            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-semibold"
-                            disabled={game.crewChief === 'Unassigned'}
+                            className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+                              game.crewChief === 'Unassigned' 
+                                ? 'bg-yellow-600 hover:bg-yellow-700' 
+                                : 'bg-green-600 hover:bg-green-700'
+                            }`}
                           >
-                            Officiate Game
+                            {game.crewChief === 'Unassigned' ? 'Assign & Officiate' : 'Officiate Game'}
                           </button>
                         </div>
                       </div>
@@ -6346,8 +6467,9 @@ Flow: ${gameFlow}
           time: gameToAssign.time,
           venue: gameToAssign.venue
         } : {} as any}
-        availableCrews={getAvailableCrews()}
+        availableCrews={availableCrews}
         onAssignCrew={handleAssignCrew}
+        showStartOfficatingOption={gameToAssign?.crewChief === 'Unassigned'}
       />
 
       {/* Enforcement Modal */}
