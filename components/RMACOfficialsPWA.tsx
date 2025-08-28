@@ -887,6 +887,9 @@ const RMACOfficialsPWA: React.FC = () => {
   const [showRMACAnalytics, setShowRMACAnalytics] = useState<boolean>(false);
   const [showWeeklyManagement, setShowWeeklyManagement] = useState<boolean>(false);
 
+  // Missing State Variables for Error Resolution
+  const [weeklyGames, setWeeklyGames] = useState<any[]>([]);
+
   // Refs
   const gameClockInterval = useRef<NodeJS.Timeout | null>(null);
   const playClockInterval = useRef<NodeJS.Timeout | null>(null);
@@ -1891,7 +1894,7 @@ Time: ${new Date().toLocaleTimeString()}
 
       // Show success notification
       setLastAction(`Crew "${selectedCrew.name}" assigned to game`);
-      triggerHapticFeedback('success');
+      triggerHapticFeedback('medium');
       
     } catch (error) {
       console.error('Failed to assign crew:', error);
@@ -2147,8 +2150,8 @@ Time: ${new Date().toLocaleTimeString()}
         description: data.details,
         callingOfficial: callingOfficial,
         downDistance: down + " & " + distance, // Add missing property
-        playType: 'Enforcement', // Add missing property
-        acceptDecline: 'N/A', // Add missing property
+        playType: 'other' as 'run' | 'pass' | 'kick' | 'other', // Add missing property with correct type
+        acceptDecline: 'pending' as 'accepted' | 'declined' | 'pending', // Add missing property with correct type
         timestamp: new Date().toISOString()
       };
       
@@ -2184,8 +2187,8 @@ Time: ${new Date().toLocaleTimeString()}
         description: data.note,
         callingOfficial: callingOfficial,
         downDistance: down + " & " + distance, // Add missing property
-        playType: 'Note', // Add missing property
-        acceptDecline: 'N/A', // Add missing property
+        playType: 'other' as 'run' | 'pass' | 'kick' | 'other', // Add missing property with correct type
+        acceptDecline: 'pending' as 'accepted' | 'declined' | 'pending', // Add missing property with correct type
         timestamp: data.timestamp
       };
       
@@ -2195,8 +2198,6 @@ Time: ${new Date().toLocaleTimeString()}
       
       // TODO: Save to notes system
       console.log('Note added:', noteRecord);
-    }
-      console.log('Note saved:', noteRecord);
     }
     setShowNotesModal(false);
   };
@@ -5280,7 +5281,12 @@ Flow: ${gameFlow}
         <WeeklyGameManagement 
           currentWeek={currentWeek}
           onSelectGame={(game) => {
-            setCurrentGame(game);
+            // Convert WeeklyGame to Game format
+            const gameWithPenalties: Game = {
+              ...game,
+              penalties: [] // Initialize empty penalties array for new game
+            };
+            setCurrentGame(gameWithPenalties);
             setCurrentView('game');
           }}
           onViewCrewAnalytics={(crewChief) => {
@@ -6448,4 +6454,6 @@ const QuickEntryTemplates: React.FC<{
 };
 
 
+// Add this state declaration near the other useState declarations at the top of the component
 export default RMACOfficialsPWA;
+
