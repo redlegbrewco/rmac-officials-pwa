@@ -1625,6 +1625,9 @@ Time: ${new Date().toLocaleTimeString()}
       quarter: quarter,
       time: gameTime,
       down: `${down} & ${distance}`,
+      downDistance: `${down} & ${distance}`, // Add missing property
+      playType: 'other', // Add missing property
+      acceptDecline: 'pending', // Add missing property
       callingOfficial: officialId,
       fieldPosition: fieldPosition,
       timestamp: new Date().toISOString()
@@ -2127,28 +2130,31 @@ Time: ${new Date().toLocaleTimeString()}
     setShowEnforcementModal(true);
   };
 
-  const handleEnforcementSubmit = (action: string, details: string) => {
-    if (action && details) {
+  const handleEnforcementSubmit = (data: { type: string; player: string; details: string; quarter: string }) => {
+    if (data.type && data.player && data.quarter) {
       // Add to penalties array as enforcement action
       const enforcementRecord = {
         id: Date.now(),
         code: 'ENF',
-        name: action,
-        player: details.match(/\d+/)?.[0] || 'N/A',
+        name: data.type,
+        player: data.player,
         team: team,
-        quarter: quarter,
+        quarter: data.quarter,
         time: gameTime,
         down: down,
         fieldPosition: fieldPosition,
         yards: 0, // Default yards for enforcement actions
-        description: details,
+        description: data.details,
         callingOfficial: callingOfficial,
+        downDistance: down + " & " + distance, // Add missing property
+        playType: 'Enforcement', // Add missing property
+        acceptDecline: 'N/A', // Add missing property
         timestamp: new Date().toISOString()
       };
       
       setPenalties(prev => [...prev, enforcementRecord]);
-      setLastAction(`Enforcement Action: ${action}`);
-      triggerHapticFeedback('success');
+      setLastAction(`Enforcement Action: ${data.type}`);
+      triggerHapticFeedback('medium');
       
       // TODO: Send to enforcement logging system
       console.log('Enforcement action logged:', enforcementRecord);
@@ -2161,13 +2167,13 @@ Time: ${new Date().toLocaleTimeString()}
     setShowNotesModal(true);
   };
 
-  const handleNoteSubmit = (noteType: string, noteText: string) => {
-    if (noteType && noteText) {
+  const handleNoteSubmit = (data: { type: string; note: string; timestamp: string }) => {
+    if (data.type && data.note) {
       // Add to penalties array as a note
       const noteRecord = {
         id: Date.now(),
         code: 'NOTE',
-        name: noteType,
+        name: data.type,
         player: 'N/A',
         team: 'N/A',
         quarter: quarter,
@@ -2175,16 +2181,21 @@ Time: ${new Date().toLocaleTimeString()}
         down: down,
         fieldPosition: fieldPosition,
         yards: 0, // Default yards for notes
-        description: noteText,
+        description: data.note,
         callingOfficial: callingOfficial,
-        timestamp: new Date().toISOString()
+        downDistance: down + " & " + distance, // Add missing property
+        playType: 'Note', // Add missing property
+        acceptDecline: 'N/A', // Add missing property
+        timestamp: data.timestamp
       };
       
       setPenalties(prev => [...prev, noteRecord]);
-      setLastAction(`Note Added: ${noteType}`);
+      setLastAction(`Note Added: ${data.type}`);
       triggerHapticFeedback('light');
       
       // TODO: Save to notes system
+      console.log('Note added:', noteRecord);
+    }
       console.log('Note saved:', noteRecord);
     }
     setShowNotesModal(false);
@@ -4678,6 +4689,9 @@ Flow: ${gameFlow}
               quarter: gameClockTime.quarter.toString(),
               time: `${gameClockTime.minutes}:${gameClockTime.seconds.toString().padStart(2, '0')}`,
               down: `${down} & ${distance}`,
+              downDistance: `${down} & ${distance}`, // Add missing property
+              playType: 'other', // Add missing property
+              acceptDecline: 'pending', // Add missing property
               callingOfficial: callingOfficial,
               fieldPosition: fieldPosition,
               voiceNote: '',

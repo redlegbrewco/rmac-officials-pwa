@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:google-sheets": "node test-google-sheets.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.53.0",
