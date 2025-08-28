@@ -20,6 +20,9 @@ import WeeklyGameManagement from './WeeklyGameManagement';
 import RMACAnalyticsDashboard from './RMACAnalyticsDashboard';
 import CrewAssignmentModal from './CrewAssignmentModal';
 import CrewPerformancePanel from './CrewPerformancePanel';
+import { EnforcementForm } from './EnforcementForm';
+import { NotesForm } from './NotesForm';
+import { IntelligenceForm } from './IntelligenceForm';
 
 // Web Speech API type declarations
 declare global {
@@ -693,6 +696,32 @@ const RMACOfficialsPWA: React.FC = () => {
   const [showCrewAssignmentModal, setShowCrewAssignmentModal] = useState<boolean>(false);
   const [gameToAssign, setGameToAssign] = useState<Game | null>(null);
 
+  // Modal State for Button Interactions
+  const [showEnforcementModal, setShowEnforcementModal] = useState<boolean>(false);
+  const [showNotesModal, setShowNotesModal] = useState<boolean>(false);
+  const [enforcementData, setEnforcementData] = useState<{
+    action: string;
+    details: string;
+  } | null>(null);
+  const [noteData, setNoteData] = useState<{
+    type: string;
+    text: string;
+  } | null>(null);
+  const [showIntelligenceModal, setShowIntelligenceModal] = useState<boolean>(false);
+
+  // Toast notification system
+  const [toastMessage, setToastMessage] = useState<string>('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+  const [showToast, setShowToast] = useState<boolean>(false);
+
+  // Toast helper function
+  const showToastMessage = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 4000); // Auto-hide after 4 seconds
+  };
+
   // Phase 5: Sideline Mode State
   const [gameClockRunning, setGameClockRunning] = useState<boolean>(false);
   const [gameClockTime, setGameClockTime] = useState<{
@@ -1184,7 +1213,7 @@ const RMACOfficialsPWA: React.FC = () => {
   // Enhanced QwikRef export with Google Sheets backup
   const exportToQwikRef = async (): Promise<void> => {
     if (!currentGame || penalties.length === 0) {
-      alert('No penalties to export');
+      showToastMessage('No penalties to export', 'info');
       return;
     }
 
@@ -1219,12 +1248,12 @@ Defensive: ${penalties.filter(p => p.team === 'D').length}
 Data copied to clipboard - ready to paste into QwikRef!
       `.trim();
       
-      alert(summary);
+      showToastMessage(summary, 'success');
       setFoulReportReady(true);
       
     } catch (err) {
       console.error('QwikRef export failed:', err);
-      alert('Export failed - check clipboard permissions');
+      showToastMessage('Export failed - check clipboard permissions', 'error');
     }
   };
 
@@ -1276,7 +1305,7 @@ Generated: ${new Date().toLocaleString()}
   // Quick Post-Game Report to Coordinator
   const sendQuickPostGameReport = async (): Promise<void> => {
     if (!currentGame || !crewData) {
-      alert('Game data not available');
+      showToastMessage('Game data not available', 'error');
       return;
     }
 
@@ -1330,7 +1359,7 @@ Time: ${new Date().toLocaleTimeString()}
       });
 
       if (response.ok) {
-        alert('Quick report sent! Safe travels to the locker room.');
+        showToastMessage('Quick report sent! Safe travels to the locker room.', 'success');
         setLastEmailSent(new Date().toISOString());
         
         // Also save scouting reports to Google Drive for other crews
@@ -1352,7 +1381,7 @@ Time: ${new Date().toLocaleTimeString()}
       }
     } catch (error) {
       console.error('Quick report failed:', error);
-      alert('Failed to send quick report. You can still copy the data manually.');
+      showToastMessage('Failed to send quick report. You can still copy the data manually.', 'error');
     } finally {
       setIsSendingEmail(false);
     }
@@ -1374,27 +1403,27 @@ Time: ${new Date().toLocaleTimeString()}
       playSound('ding');
     } catch (err) {
       console.error('Failed to copy:', err);
-      alert('Failed to copy data');
+      showToastMessage('Failed to copy data', 'error');
     }
   };
 
   // Enhanced addPenalty to use real offline storage
   const addPenalty = async (): Promise<void> => {
     if (!selectedPenalty || !playerNumber) {
-      alert('Please select penalty type and enter player number');
+      showToastMessage('Please select penalty type and enter player number', 'error');
       return;
     }
 
     // Check if penalty requires subcategory selection
     const penaltyDef = penaltyTypes[selectedPenalty];
     if (penaltyDef?.subcategories && penaltyDef.subcategories.length > 0 && !selectedSubcategory) {
-      alert('Please select a subcategory for this penalty');
+      showToastMessage('Please select a subcategory for this penalty', 'error');
       return;
     }
 
     const playerNum = parseInt(playerNumber);
     if (isNaN(playerNum) || playerNum < 0 || playerNum > 99) {
-      alert('Please enter a valid player number (0-99)');
+      showToastMessage('Please enter a valid player number (0-99)', 'error');
       return;
     }
 
@@ -1519,16 +1548,16 @@ Time: ${new Date().toLocaleTimeString()}
   // Manual sync handler
   const handleManualSync = async () => {
     if (!isOnline()) {
-      alert('Cannot sync while offline');
+      showToastMessage('Cannot sync while offline', 'error');
       return;
     }
     
     setIsBackingUp(true);
     try {
       await syncQueuedPenalties();
-      alert('Sync completed successfully!');
+      showToastMessage('Sync completed successfully!', 'success');
     } catch (error) {
-      alert('Sync failed. Please try again.');
+      showToastMessage('Sync failed. Please try again.', 'error');
     } finally {
       setIsBackingUp(false);
     }
@@ -1537,12 +1566,12 @@ Time: ${new Date().toLocaleTimeString()}
   // Add missing functions
   const startNewGame = () => {
     if (!selectedCrew || !selectedHomeTeam || !selectedAwayTeam) {
-      alert('Please select crew, home team, and away team');
+      showToastMessage('Please select crew, home team, and away team', 'error');
       return;
     }
     
     if (selectedHomeTeam === selectedAwayTeam) {
-      alert('Home and away teams cannot be the same');
+      showToastMessage('Home and away teams cannot be the same', 'error');
       return;
     }
     
@@ -1863,7 +1892,7 @@ Time: ${new Date().toLocaleTimeString()}
       
     } catch (error) {
       console.error('Failed to assign crew:', error);
-      alert('Failed to assign crew. Please try again.');
+      showToastMessage('Failed to assign crew. Please try again.', 'error');
     }
   };
 
@@ -2095,140 +2124,112 @@ Time: ${new Date().toLocaleTimeString()}
 
   // Enforcement Actions Functions
   const openEnforcementTools = () => {
-    const actions = [
-      'Player Warning',
-      'Player Ejection', 
-      'Coach Warning',
-      'Coach Ejection',
-      'Crew Conference',
-      'Game Suspension'
-    ];
-    
-    const action = prompt(`Select enforcement action:\n${actions.map((a, i) => `${i + 1}. ${a}`).join('\n')}\n\nEnter number (1-${actions.length}):`);
-    
-    if (action && parseInt(action) >= 1 && parseInt(action) <= actions.length) {
-      const selectedAction = actions[parseInt(action) - 1];
-      const details = prompt(`${selectedAction} details (player #, reason, etc.):`);
+    setShowEnforcementModal(true);
+  };
+
+  const handleEnforcementSubmit = (action: string, details: string) => {
+    if (action && details) {
+      // Add to penalties array as enforcement action
+      const enforcementRecord = {
+        id: Date.now(),
+        code: 'ENF',
+        name: action,
+        player: details.match(/\d+/)?.[0] || 'N/A',
+        team: team,
+        quarter: quarter,
+        time: gameTime,
+        down: down,
+        fieldPosition: fieldPosition,
+        yards: 0, // Default yards for enforcement actions
+        description: details,
+        callingOfficial: callingOfficial,
+        timestamp: new Date().toISOString()
+      };
       
-      if (details) {
-        // TODO: Send to enforcement logging system
-        alert(`Enforcement Action Logged:\n${selectedAction}\nDetails: ${details}\n\nThis will be sent to RMAC headquarters.`);
-        
-        // Add to penalties array as enforcement action
-        const enforcementRecord = {
-          id: Date.now(),
-          code: 'ENF',
-          name: selectedAction,
-          player: details.match(/\d+/)?.[0] || 'N/A',
-          team: team,
-          quarter: quarter,
-          time: gameTime,
-          down: down,
-          fieldPosition: fieldPosition,
-          yards: 0, // Default yards for enforcement actions
-          description: details,
-          callingOfficial: callingOfficial,
-          timestamp: new Date().toISOString()
-        };
-        
-        setPenalties(prev => [...prev, enforcementRecord]);
-      }
+      setPenalties(prev => [...prev, enforcementRecord]);
+      setLastAction(`Enforcement Action: ${action}`);
+      triggerHapticFeedback('success');
+      
+      // TODO: Send to enforcement logging system
+      console.log('Enforcement action logged:', enforcementRecord);
     }
+    setShowEnforcementModal(false);
   };
 
   // Notes Functions  
   const openNotesPanel = () => {
-    const noteTypes = [
-      'Game Observation',
-      'Crew Communication', 
-      'Weather Update',
-      'Injury Report',
-      'Equipment Issue',
-      'Other'
-    ];
-    
-    const noteType = prompt(`Select note type:\n${noteTypes.map((n, i) => `${i + 1}. ${n}`).join('\n')}\n\nEnter number (1-${noteTypes.length}):`);
-    
-    if (noteType && parseInt(noteType) >= 1 && parseInt(noteType) <= noteTypes.length) {
-      const selectedType = noteTypes[parseInt(noteType) - 1];
-      const noteText = prompt(`Enter ${selectedType}:`);
+    setShowNotesModal(true);
+  };
+
+  const handleNoteSubmit = (noteType: string, noteText: string) => {
+    if (noteType && noteText) {
+      // Add to penalties array as a note
+      const noteRecord = {
+        id: Date.now(),
+        code: 'NOTE',
+        name: noteType,
+        player: 'N/A',
+        team: 'N/A',
+        quarter: quarter,
+        time: gameTime,
+        down: down,
+        fieldPosition: fieldPosition,
+        yards: 0, // Default yards for notes
+        description: noteText,
+        callingOfficial: callingOfficial,
+        timestamp: new Date().toISOString()
+      };
       
-      if (noteText) {
-        // TODO: Save to notes system
-        alert(`Note Saved:\nType: ${selectedType}\nTime: ${quarter} - ${gameTime}\nNote: ${noteText}\n\nThis will be included in the game report.`);
-        
-        // Add to penalties array as a note
-        const noteRecord = {
-          id: Date.now(),
-          code: 'NOTE',
-          name: selectedType,
-          player: 'N/A',
-          team: 'N/A',
-          quarter: quarter,
-          time: gameTime,
-          down: down,
-          fieldPosition: fieldPosition,
-          yards: 0, // Default yards for notes
-          description: noteText,
-          callingOfficial: callingOfficial,
-          timestamp: new Date().toISOString()
-        };
-        
-        setPenalties(prev => [...prev, noteRecord]);
-      }
+      setPenalties(prev => [...prev, noteRecord]);
+      setLastAction(`Note Added: ${noteType}`);
+      triggerHapticFeedback('light');
+      
+      // TODO: Save to notes system
+      console.log('Note saved:', noteRecord);
     }
+    setShowNotesModal(false);
   };
 
   // Intelligence Functions
-  const contributeIntelligence = async (): Promise<void> => {
+  const contributeIntelligence = (): void => {
     console.log('CONTRIBUTE INTELLIGENCE CLICKED!'); // Debug log
-    const intelligenceTypes = [
-      'Player Tendency',
-      'Coach Behavior', 
-      'Team Pattern',
-      'Equipment Issue',
-      'Weather/Field Condition',
-      'Other Observation'
-    ];
+    setShowIntelligenceModal(true);
+  };
+
+  const handleIntelligenceSubmit = async (data: { type: string; details: string }): Promise<void> => {
+    setShowIntelligenceModal(false);
     
-    const type = prompt(`What type of intelligence to contribute?\n${intelligenceTypes.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nEnter number (1-${intelligenceTypes.length}):`);
-    
-    if (type && parseInt(type) >= 1 && parseInt(type) <= intelligenceTypes.length) {
-      const selectedType = intelligenceTypes[parseInt(type) - 1];
-      const details = prompt(`Enter ${selectedType} details:`);
+    try {
+      const response = await fetch('/api/update-rmac-intelligence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: data.type,
+          details: data.details,
+          game: `${currentGame?.homeTeam} vs ${currentGame?.awayTeam}`,
+          quarter: quarter,
+          time: gameTime,
+          official: callingOfficial,
+          timestamp: new Date().toISOString()
+        })
+      });
       
-      if (details) {
-        try {
-          const response = await fetch('/api/update-rmac-intelligence', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: selectedType,
-              details: details,
-              game: `${currentGame?.homeTeam} vs ${currentGame?.awayTeam}`,
-              quarter: quarter,
-              time: gameTime,
-              official: callingOfficial,
-              timestamp: new Date().toISOString()
-            })
-          });
-          
-          if (response.ok) {
-            alert(`Intelligence contributed successfully!\nType: ${selectedType}\nDetails: ${details}\n\nThis has been shared with all RMAC crews.`);
-          } else {
-            throw new Error('Failed to submit');
-          }
-        } catch (error) {
-          alert('Failed to contribute intelligence. Please try again later.');
-        }
+      if (response.ok) {
+        console.log(`Intelligence contributed successfully: ${data.type} - ${data.details}`);
+        // In a real app, show a success toast notification instead of console.log
+      } else {
+        throw new Error('Failed to submit');
       }
+    } catch (error) {
+      console.error('Failed to contribute intelligence:', error);
+      // In a real app, show an error toast notification instead of console.error
     }
   };
 
   // Google Sheets Functions
   const syncToGoogleSheets = async (): Promise<void> => {
     if (penalties.length === 0) {
-      alert('No penalties to sync. Add some penalties first.');
+      showToastMessage('No penalties to sync. Add some penalties first.', 'info');
       return;
     }
 
@@ -2251,13 +2252,13 @@ Time: ${new Date().toLocaleTimeString()}
       const result = await response.json();
       
       if (result.success) {
-        alert(`Successfully synced ${penalties.length} penalties to Google Sheets!\n\nSheet has been updated with all current game data.`);
+        showToastMessage(`Successfully synced ${penalties.length} penalties to Google Sheets! Sheet has been updated with all current game data.`, 'success');
         setRealTimeSheetsSync(true); // Enable real-time sync for future penalties
       } else {
         throw new Error(result.error || 'Sync failed');
       }
     } catch (error) {
-      alert('Failed to sync to Google Sheets. Please check your connection and try again.');
+      showToastMessage('Failed to sync to Google Sheets. Please check your connection and try again.', 'error');
       console.error('Sheets sync error:', error);
     }
   };
@@ -6328,6 +6329,57 @@ Flow: ${gameFlow}
         availableCrews={getAvailableCrews()}
         onAssignCrew={handleAssignCrew}
       />
+
+      {/* Enforcement Modal */}
+      {showEnforcementModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-xl font-bold text-white mb-4">Enforcement Action</h2>
+            <EnforcementForm onSubmit={handleEnforcementSubmit} onCancel={() => setShowEnforcementModal(false)} />
+          </div>
+        </div>
+      )}
+
+      {/* Notes Modal */}
+      {showNotesModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-xl font-bold text-white mb-4">Add Note</h2>
+            <NotesForm onSubmit={handleNoteSubmit} onCancel={() => setShowNotesModal(false)} />
+          </div>
+        </div>
+      )}
+
+      {/* Intelligence Modal */}
+      {showIntelligenceModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-xl font-bold text-white mb-4">Contribute Intelligence</h2>
+            <IntelligenceForm onSubmit={handleIntelligenceSubmit} onCancel={() => setShowIntelligenceModal(false)} />
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {showToast && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm ${
+          toastType === 'success' ? 'bg-green-600 text-white' :
+          toastType === 'error' ? 'bg-red-600 text-white' :
+          'bg-blue-600 text-white'
+        }`}>
+          <div className="flex items-center">
+            <div className="flex-1">
+              <p className="text-sm font-medium">{toastMessage}</p>
+            </div>
+            <button 
+              onClick={() => setShowToast(false)}
+              className="ml-3 text-white hover:text-gray-200"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
